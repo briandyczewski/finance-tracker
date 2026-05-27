@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import RecommendationCard from "@/components/RecommendationCard";
 import BalanceCard from "@/components/BalanceCard";
-import TrendChart from "@/components/TrendChart";
 import TransactionForm from "@/components/TransactionForm";
 import SpendingChart from "@/components/SpendingChart";
 import TransactionList from "@/components/TransactionList";
 import SubscriptionPanel from "@/components/SubscriptionPanel";
 import HistoryPanel from "@/components/HistoryPanel";
 import BudgetPanel from "@/components/BudgetPanel";
+import RecommendationCard from "@/components/RecommendationCard";
+import TrendChart from "@/components/TrendChart";
 
 export type TransactionType = "income" | "expense";
 export type Frequency = "weekly" | "monthly" | "yearly";
@@ -92,16 +92,19 @@ export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
+  const [darkMode, setDarkMode] = useState(false);
   const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
 
   useEffect(() => {
     const savedTransactions = localStorage.getItem("finance-transactions");
     const savedSubscriptions = localStorage.getItem("finance-subscriptions");
     const savedBudgets = localStorage.getItem("finance-budgets");
+    const savedDarkMode = localStorage.getItem("finance-dark-mode");
 
     if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
     if (savedSubscriptions) setSubscriptions(JSON.parse(savedSubscriptions));
     if (savedBudgets) setBudgets(JSON.parse(savedBudgets));
+    if (savedDarkMode === "true") setDarkMode(true);
 
     setHasLoadedSavedData(true);
   }, []);
@@ -120,6 +123,16 @@ export default function Home() {
     if (!hasLoadedSavedData) return;
     localStorage.setItem("finance-budgets", JSON.stringify(budgets));
   }, [budgets, hasLoadedSavedData]);
+
+  useEffect(() => {
+    localStorage.setItem("finance-dark-mode", String(darkMode));
+
+    if (darkMode) {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+  }, [darkMode]);
 
   const monthlyTransactions = useMemo(() => {
     return transactions.filter((t) => t.date.startsWith(selectedMonth));
@@ -189,7 +202,13 @@ export default function Home() {
             <h1>Finance Tracker</h1>
           </div>
 
-          <div className="profile-badge">$</div>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setDarkMode((current) => !current)}
+          >
+            {darkMode ? "☀️" : "🌙"}
+          </button>
         </header>
 
         <nav className="tabs tabs-four">
@@ -222,36 +241,30 @@ export default function Home() {
           </button>
         </nav>
 
-{activeTab === "dashboard" && (
-  <div className="screen-stack">
-    <BalanceCard
-      selectedMonth={selectedMonth}
-      setSelectedMonth={setSelectedMonth}
-      income={income}
-      expenses={expenses}
-      balance={balance}
-    />
+        {activeTab === "dashboard" && (
+          <div className="screen-stack">
+            <BalanceCard
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              income={income}
+              expenses={expenses}
+              balance={balance}
+            />
 
-    <RecommendationCard
-      income={income}
-      expenses={expenses}
-    />
+            <RecommendationCard income={income} expenses={expenses} />
 
-    <TrendChart monthSummaries={monthSummaries} />
+            <TrendChart monthSummaries={monthSummaries} />
 
-    <TransactionForm setTransactions={setTransactions} />
+            <TransactionForm setTransactions={setTransactions} />
 
-    <SpendingChart
-      categoryTotals={categoryTotals}
-      expenses={expenses}
-    />
+            <SpendingChart categoryTotals={categoryTotals} expenses={expenses} />
 
-    <TransactionList
-      transactions={monthlyTransactions}
-      setTransactions={setTransactions}
-    />
-  </div>
-)}
+            <TransactionList
+              transactions={monthlyTransactions}
+              setTransactions={setTransactions}
+            />
+          </div>
+        )}
 
         {activeTab === "budgets" && (
           <BudgetPanel

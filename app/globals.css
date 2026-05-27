@@ -677,3 +677,88 @@ input:disabled {
     );
   padding: 12px;
 }
+
+.theme-toggle {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #111827, #334155);
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+}
+
+body.dark-mode {
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.22), transparent 30%),
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.16), transparent 25%),
+    linear-gradient(180deg, #020617, #0f172a);
+  color: #f8fafc;
+}
+
+body.dark-mode .eyebrow,
+body.dark-mode .section-heading span,
+body.dark-mode label span,
+body.dark-mode .transaction-card p,
+body.dark-mode .month-row,
+body.dark-mode .budget-top p,
+body.dark-mode .empty-state,
+body.dark-mode .goal-message {
+  color: #94a3b8;
+}
+
+body.dark-mode .tabs {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.86));
+}
+
+body.dark-mode .tab {
+  color: #94a3b8;
+}
+
+body.dark-mode .tab.active {
+  background: linear-gradient(145deg, #334155, #1e293b);
+  color: white;
+}
+
+body.dark-mode .card,
+body.dark-mode .transaction-card,
+body.dark-mode .month-card,
+body.dark-mode .budget-card {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.94));
+  border-color: rgba(51, 65, 85, 0.9);
+  color: #f8fafc;
+}
+
+body.dark-mode input,
+body.dark-mode select {
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.92));
+  border-color: rgba(71, 85, 105, 0.9);
+  color: #f8fafc;
+}
+
+body.dark-mode input:disabled {
+  color: #94a3b8;
+}
+
+body.dark-mode .chart-wrapper,
+body.dark-mode .trend-chart {
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.9));
+}
+
+body.dark-mode .legend-row,
+body.dark-mode .month-row.total {
+  border-color: rgba(71, 85, 105, 0.8);
+}
+
+body.dark-mode .budget-progress-bg {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+body.dark-mode .theme-toggle {
+  background: linear-gradient(145deg, #f8fafc, #cbd5e1);
+  color: #0f172a;
+}
