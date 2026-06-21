@@ -1,11 +1,19 @@
 import { FormEvent, useState } from "react";
-import { categories, getToday, Transaction, TransactionType } from "@/app/page";
+import {
+  categories,
+  getToday,
+  Transaction,
+  TransactionType,
+} from "@/app/page";
+import { supabase } from "@/lib/supabase";
 
 type TransactionFormProps = {
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
 };
 
-export default function TransactionForm({ setTransactions }: TransactionFormProps) {
+export default function TransactionForm({
+  setTransactions,
+}: TransactionFormProps) {
   const today = getToday();
 
   const [name, setName] = useState("");
@@ -14,22 +22,46 @@ export default function TransactionForm({ setTransactions }: TransactionFormProp
   const [category, setCategory] = useState("Food");
   const [date, setDate] = useState(today);
 
-  function addTransaction(event: FormEvent<HTMLFormElement>) {
+  async function addTransaction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const numericAmount = Number(amount);
-    if (!name.trim() || !date || !numericAmount || numericAmount <= 0) return;
 
-    const newTransaction: Transaction = {
-      id: Date.now(),
-      type,
+    if (!name.trim() || !date || !numericAmount || numericAmount <= 0) {
+      return;
+    }
+
+    const newTransaction = {
       name: name.trim(),
       amount: numericAmount,
+      type,
       category: type === "income" ? "Income" : category,
       date,
     };
 
-    setTransactions((current) => [newTransaction, ...current]);
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert(newTransaction)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error saving transaction:", error);
+      alert("Transaction could not be saved.");
+      return;
+    }
+
+    setTransactions((current) => [
+      {
+        id: data.id,
+        type: data.type,
+        name: data.name,
+        amount: Number(data.amount),
+        category: data.category,
+        date: data.date,
+      },
+      ...current,
+    ]);
 
     setName("");
     setAmount("");
@@ -49,7 +81,7 @@ export default function TransactionForm({ setTransactions }: TransactionFormProp
         <span>Name</span>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(event) => setName(event.target.value)}
           placeholder="Ex: Rent, paycheck, Chipotle"
         />
       </label>
@@ -58,7 +90,7 @@ export default function TransactionForm({ setTransactions }: TransactionFormProp
         <span>Amount</span>
         <input
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(event) => setAmount(event.target.value)}
           placeholder="0.00"
           type="number"
           min="0"
@@ -68,7 +100,11 @@ export default function TransactionForm({ setTransactions }: TransactionFormProp
 
       <label>
         <span>Date</span>
-        <input value={date} onChange={(e) => setDate(e.target.value)} type="date" />
+        <input
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
+          type="date"
+        />
       </label>
 
       <div className="input-grid">
@@ -76,7 +112,9 @@ export default function TransactionForm({ setTransactions }: TransactionFormProp
           <span>Type</span>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as TransactionType)}
+            onChange={(event) =>
+              setType(event.target.value as TransactionType)
+            }
           >
             <option value="expense">Expense</option>
             <option value="income">Income</option>
@@ -86,7 +124,10 @@ export default function TransactionForm({ setTransactions }: TransactionFormProp
         <label>
           <span>Category</span>
           {type === "expense" ? (
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
               {categories
                 .filter((cat) => cat !== "Subscriptions")
                 .map((cat) => (

@@ -1,17 +1,27 @@
 import { Transaction } from "@/app/page";
+import { supabase } from "@/lib/supabase";
 
 type TransactionListProps = {
   transactions: Transaction[];
-  setTransactions: React.Dispatch<
-    React.SetStateAction<Transaction[]>
-  >;
+  setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
 };
 
 export default function TransactionList({
   transactions,
   setTransactions,
 }: TransactionListProps) {
-  function deleteTransaction(id: number) {
+  async function deleteTransaction(id: string) {
+    const { error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting transaction:", error);
+      alert("Transaction could not be deleted.");
+      return;
+    }
+
     setTransactions((current) =>
       current.filter((transaction) => transaction.id !== id)
     );
@@ -26,40 +36,28 @@ export default function TransactionList({
 
       <div className="transaction-list">
         {transactions.map((transaction) => (
-          <article
-            className="transaction-card"
-            key={transaction.id}
-          >
+          <article className="transaction-card" key={transaction.id}>
             <div>
               <h3>{transaction.name}</h3>
-
               <p>
-                {transaction.date} •{" "}
-                {transaction.category}
+                {transaction.date} • {transaction.category}
               </p>
             </div>
 
             <div className="transaction-actions">
               <strong
                 className={
-                  transaction.type === "income"
-                    ? "positive"
-                    : "negative"
+                  transaction.type === "income" ? "positive" : "negative"
                 }
               >
-                {transaction.type === "income"
-                  ? "+"
-                  : "-"}
-                $
+                {transaction.type === "income" ? "+" : "-"}$
                 {transaction.amount.toFixed(2)}
               </strong>
 
               <button
                 type="button"
                 className="delete-button"
-                onClick={() =>
-                  deleteTransaction(transaction.id)
-                }
+                onClick={() => deleteTransaction(transaction.id)}
               >
                 Delete
               </button>
