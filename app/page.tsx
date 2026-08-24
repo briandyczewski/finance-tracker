@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+import {
+  Transaction,
+  Subscription,
+  categories,
+  getToday,
+  countSubscriptionCharges,
+} from "@/lib/finance";
+
 import BalanceCard from "@/components/BalanceCard";
 import TransactionForm from "@/components/TransactionForm";
 import SpendingChart from "@/components/SpendingChart";
@@ -10,75 +20,6 @@ import HistoryPanel from "@/components/HistoryPanel";
 import BudgetPanel from "@/components/BudgetPanel";
 import RecommendationCard from "@/components/RecommendationCard";
 import TrendChart from "@/components/TrendChart";
-
-export type TransactionType = "income" | "expense";
-export type Frequency = "weekly" | "monthly" | "yearly";
-
-export type Transaction = {
-  id: number;
-  type: TransactionType;
-  name: string;
-  amount: number;
-  category: string;
-  date: string;
-};
-
-export type Subscription = {
-  id: number;
-  name: string;
-  amount: number;
-  frequency: Frequency;
-  startDate: string;
-};
-
-export const categories = [
-  "Rent",
-  "Bills",
-  "Food",
-  "Gas",
-  "Fun",
-  "Savings",
-  "Subscriptions",
-  "Other",
-];
-
-export function getToday() {
-  return new Date().toISOString().split("T")[0];
-}
-
-export function getMonthRange(month: string) {
-  const [year, monthIndex] = month.split("-").map(Number);
-
-  return {
-    start: new Date(year, monthIndex - 1, 1),
-    end: new Date(year, monthIndex, 0),
-  };
-}
-
-export function countSubscriptionCharges(
-  subscription: Subscription,
-  month: string
-) {
-  const { start, end } = getMonthRange(month);
-  const subStart = new Date(subscription.startDate + "T00:00:00");
-
-  if (subStart > end) return 0;
-  if (subscription.frequency === "monthly") return 1;
-
-  if (subscription.frequency === "yearly") {
-    return subStart.getMonth() === start.getMonth() ? 1 : 0;
-  }
-
-  let count = 0;
-  const chargeDate = new Date(subStart);
-
-  while (chargeDate <= end) {
-    if (chargeDate >= start) count++;
-    chargeDate.setDate(chargeDate.getDate() + 7);
-  }
-
-  return count;
-}
 
 export default function Home() {
   const today = getToday();
@@ -96,32 +37,67 @@ export default function Home() {
   const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
 
   useEffect(() => {
-    const savedTransactions = localStorage.getItem("finance-transactions");
+    async function loadTransactions() {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading transactions:", error);
+        return;
+      }
+
+      if (data) {
+        setTransactions(
+          data.map((item) => ({
+            id: Number(item.id),
+            name: item.name,
+            amount: Number(item.amount),
+            type: item.type,
+            category: item.category,
+            date: item.date,
+          }))
+        );
+      }
+    }
+
     const savedSubscriptions = localStorage.getItem("finance-subscriptions");
     const savedBudgets = localStorage.getItem("finance-budgets");
     const savedDarkMode = localStorage.getItem("finance-dark-mode");
 
-    if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-    if (savedSubscriptions) setSubscriptions(JSON.parse(savedSubscriptions));
-    if (savedBudgets) setBudgets(JSON.parse(savedBudgets));
-    if (savedDarkMode === "true") setDarkMode(true);
+    if (savedSubscriptions) {
+      setSubscriptions(JSON.parse(savedSubscriptions));
+    }
 
+    if (savedBudgets) {
+      setBudgets(JSON.parse(savedBudgets));
+    }
+
+    if (savedDarkMode === "true") {
+      setDarkMode(true);
+    }
+
+    loadTransactions();
     setHasLoadedSavedData(true);
   }, []);
 
   useEffect(() => {
     if (!hasLoadedSavedData) return;
-    localStorage.setItem("finance-transactions", JSON.stringify(transactions));
-  }, [transactions, hasLoadedSavedData]);
 
-  useEffect(() => {
-    if (!hasLoadedSavedData) return;
-    localStorage.setItem("finance-subscriptions", JSON.stringify(subscriptions));
+    localStorage.setItem(
+      "finance-subscriptions",
+      JSON.stringify(subscriptions)
+    );
   }, [subscriptions, hasLoadedSavedData]);
 
   useEffect(() => {
     if (!hasLoadedSavedData) return;
-    localStorage.setItem("finance-budgets", JSON.stringify(budgets));
+
+    localStorage.setItem(
+      "finance-budgets",
+      JSON.stringify(budgets)
+    );
   }, [budgets, hasLoadedSavedData]);
 
   useEffect(() => {
@@ -135,56 +111,82 @@ export default function Home() {
   }, [darkMode]);
 
   const monthlyTransactions = useMemo(() => {
-    return transactions.filter((t) => t.date.startsWith(selectedMonth));
+    return transactions.filter((transaction) =>
+      transaction.date.startsWith(selectedMonth)
+    );
   }, [transactions, selectedMonth]);
 
   const subscriptionExpenses = useMemo(() => {
-    return subscriptions.reduce((total, sub) => {
-      return total + sub.amount * countSubscriptionCharges(sub, selectedMonth);
+    return subscriptions.reduce((total, subscription) => {
+      return (
+        total +
+        subscription.amount *
+          countSubscriptionCharges(subscription, selectedMonth)
+      );
     }, 0);
   }, [subscriptions, selectedMonth]);
 
   const income = monthlyTransactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((transaction) => transaction.type === "income")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
 
   const manualExpenses = monthlyTransactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((transaction) => transaction.type === "expense")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
 
   const expenses = manualExpenses + subscriptionExpenses;
   const balance = income - expenses;
 
-  const categoryTotals = categories.map((cat) => {
-    if (cat === "Subscriptions") {
-      return { category: cat, total: subscriptionExpenses };
+  const categoryTotals = categories.map((category) => {
+    if (category === "Subscriptions") {
+      return {
+        category,
+        total: subscriptionExpenses,
+      };
     }
 
     const total = monthlyTransactions
-      .filter((t) => t.type === "expense" && t.category === cat)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(
+        (transaction) =>
+          transaction.type === "expense" &&
+          transaction.category === category
+      )
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
 
-    return { category: cat, total };
+    return {
+      category,
+      total,
+    };
   });
 
   const monthSummaries = Array.from({ length: 12 }, (_, index) => {
     const date = new Date();
     date.setMonth(date.getMonth() - index);
+
     const month = date.toISOString().slice(0, 7);
 
-    const monthlyTx = transactions.filter((t) => t.date.startsWith(month));
+    const monthlyTx = transactions.filter((transaction) =>
+      transaction.date.startsWith(month)
+    );
 
     const monthIncome = monthlyTx
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((transaction) => transaction.type === "income")
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
 
     const monthManualExpenses = monthlyTx
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((transaction) => transaction.type === "expense")
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
 
-    const monthSubscriptionExpenses = subscriptions.reduce((sum, sub) => {
-      return sum + sub.amount * countSubscriptionCharges(sub, month);
-    }, 0);
+    const monthSubscriptionExpenses = subscriptions.reduce(
+      (sum, subscription) => {
+        return (
+          sum +
+          subscription.amount *
+            countSubscriptionCharges(subscription, month)
+        );
+      },
+      0
+    );
 
     return {
       month,
@@ -227,7 +229,9 @@ export default function Home() {
           </button>
 
           <button
-            className={activeTab === "subscriptions" ? "tab active" : "tab"}
+            className={
+              activeTab === "subscriptions" ? "tab active" : "tab"
+            }
             onClick={() => setActiveTab("subscriptions")}
           >
             Subs
@@ -251,13 +255,21 @@ export default function Home() {
               balance={balance}
             />
 
-            <RecommendationCard income={income} expenses={expenses} />
+            <RecommendationCard
+              income={income}
+              expenses={expenses}
+            />
 
             <TrendChart monthSummaries={monthSummaries} />
 
-            <TransactionForm setTransactions={setTransactions} />
+            <TransactionForm
+              setTransactions={setTransactions}
+            />
 
-            <SpendingChart categoryTotals={categoryTotals} expenses={expenses} />
+            <SpendingChart
+              categoryTotals={categoryTotals}
+              expenses={expenses}
+            />
 
             <TransactionList
               transactions={monthlyTransactions}

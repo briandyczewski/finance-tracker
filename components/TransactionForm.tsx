@@ -1,14 +1,18 @@
 import { FormEvent, useState } from "react";
+
 import {
   categories,
   getToday,
   Transaction,
   TransactionType,
-} from "@/app/page";
+} from "@/lib/finance";
+
 import { supabase } from "@/lib/supabase";
 
 type TransactionFormProps = {
-  setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
+  setTransactions: React.Dispatch<
+    React.SetStateAction<Transaction[]>
+  >;
 };
 
 export default function TransactionForm({
@@ -18,16 +22,24 @@ export default function TransactionForm({
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [type, setType] = useState<TransactionType>("expense");
+  const [type, setType] =
+    useState<TransactionType>("expense");
   const [category, setCategory] = useState("Food");
   const [date, setDate] = useState(today);
 
-  async function addTransaction(event: FormEvent<HTMLFormElement>) {
+  async function addTransaction(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     const numericAmount = Number(amount);
 
-    if (!name.trim() || !date || !numericAmount || numericAmount <= 0) {
+    if (
+      !name.trim() ||
+      !date ||
+      !numericAmount ||
+      numericAmount <= 0
+    ) {
       return;
     }
 
@@ -53,7 +65,7 @@ export default function TransactionForm({
 
     setTransactions((current) => [
       {
-        id: data.id,
+        id: Number(data.id),
         type: data.type,
         name: data.name,
         amount: Number(data.amount),
@@ -79,18 +91,24 @@ export default function TransactionForm({
 
       <label>
         <span>Name</span>
+
         <input
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) =>
+            setName(event.target.value)
+          }
           placeholder="Ex: Rent, paycheck, Chipotle"
         />
       </label>
 
       <label>
         <span>Amount</span>
+
         <input
           value={amount}
-          onChange={(event) => setAmount(event.target.value)}
+          onChange={(event) =>
+            setAmount(event.target.value)
+          }
           placeholder="0.00"
           type="number"
           min="0"
@@ -100,9 +118,12 @@ export default function TransactionForm({
 
       <label>
         <span>Date</span>
+
         <input
           value={date}
-          onChange={(event) => setDate(event.target.value)}
+          onChange={(event) =>
+            setDate(event.target.value)
+          }
           type="date"
         />
       </label>
@@ -110,28 +131,44 @@ export default function TransactionForm({
       <div className="input-grid">
         <label>
           <span>Type</span>
+
           <select
             value={type}
             onChange={(event) =>
-              setType(event.target.value as TransactionType)
+              setType(
+                event.target.value as TransactionType
+              )
             }
           >
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
+            <option value="expense">
+              Expense
+            </option>
+
+            <option value="income">
+              Income
+            </option>
           </select>
         </label>
 
         <label>
           <span>Category</span>
+
           {type === "expense" ? (
             <select
               value={category}
-              onChange={(event) => setCategory(event.target.value)}
+              onChange={(event) =>
+                setCategory(event.target.value)
+              }
             >
               {categories
-                .filter((cat) => cat !== "Subscriptions")
+                .filter(
+                  (cat) => cat !== "Subscriptions"
+                )
                 .map((cat) => (
-                  <option key={cat} value={cat}>
+                  <option
+                    key={cat}
+                    value={cat}
+                  >
                     {cat}
                   </option>
                 ))}
@@ -142,7 +179,10 @@ export default function TransactionForm({
         </label>
       </div>
 
-      <button className="primary-button" type="submit">
+      <button
+        className="primary-button"
+        type="submit"
+      >
         Add Transaction
       </button>
     </form>
