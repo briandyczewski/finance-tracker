@@ -12,6 +12,8 @@ import {
   countSubscriptionCharges,
 } from "@/lib/finance";
 
+import { supabase } from "@/lib/supabase";
+
 type SubscriptionPanelProps = {
   subscriptions: Subscription[];
 
@@ -43,7 +45,7 @@ export default function SubscriptionPanel({
   const [subStartDate, setSubStartDate] =
     useState(today);
 
-  function addSubscription(
+  async function addSubscription(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -60,16 +62,42 @@ export default function SubscriptionPanel({
       return;
     }
 
-    const newSubscription: Subscription = {
-      id: Date.now(),
+    const newSubscription = {
       name: subName.trim(),
       amount: numericAmount,
       frequency: subFrequency,
-      startDate: subStartDate,
+      start_date: subStartDate,
+    };
+
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .insert(newSubscription)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(
+        "Error saving subscription:",
+        error
+      );
+
+      alert(
+        "Subscription could not be saved."
+      );
+
+      return;
+    }
+
+    const savedSubscription: Subscription = {
+      id: Number(data.id),
+      name: data.name,
+      amount: Number(data.amount),
+      frequency: data.frequency as Frequency,
+      startDate: data.start_date,
     };
 
     setSubscriptions((current) => [
-      newSubscription,
+      savedSubscription,
       ...current,
     ]);
 
@@ -79,7 +107,27 @@ export default function SubscriptionPanel({
     setSubStartDate(today);
   }
 
-  function deleteSubscription(id: number) {
+  async function deleteSubscription(
+    id: number
+  ) {
+    const { error } = await supabase
+      .from("subscriptions")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(
+        "Error deleting subscription:",
+        error
+      );
+
+      alert(
+        "Subscription could not be deleted."
+      );
+
+      return;
+    }
+
     setSubscriptions((current) =>
       current.filter(
         (sub) => sub.id !== id

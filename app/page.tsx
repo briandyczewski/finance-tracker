@@ -62,13 +62,32 @@ export default function Home() {
       }
     }
 
-    const savedSubscriptions = localStorage.getItem("finance-subscriptions");
+    async function loadSubscriptions() {
+      const { data, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading subscriptions:", error);
+        return;
+      }
+
+      if (data) {
+        setSubscriptions(
+          data.map((item) => ({
+            id: Number(item.id),
+            name: item.name,
+            amount: Number(item.amount),
+            frequency: item.frequency,
+            startDate: item.start_date,
+          }))
+        );
+      }
+    }
+
     const savedBudgets = localStorage.getItem("finance-budgets");
     const savedDarkMode = localStorage.getItem("finance-dark-mode");
-
-    if (savedSubscriptions) {
-      setSubscriptions(JSON.parse(savedSubscriptions));
-    }
 
     if (savedBudgets) {
       setBudgets(JSON.parse(savedBudgets));
@@ -79,17 +98,10 @@ export default function Home() {
     }
 
     loadTransactions();
+    loadSubscriptions();
+
     setHasLoadedSavedData(true);
   }, []);
-
-  useEffect(() => {
-    if (!hasLoadedSavedData) return;
-
-    localStorage.setItem(
-      "finance-subscriptions",
-      JSON.stringify(subscriptions)
-    );
-  }, [subscriptions, hasLoadedSavedData]);
 
   useEffect(() => {
     if (!hasLoadedSavedData) return;
