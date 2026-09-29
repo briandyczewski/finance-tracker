@@ -8,6 +8,7 @@ import {
   Subscription,
   SavingsEntry,
   categories,
+  sumSavings,
   getToday,
   countSubscriptionCharges,
 } from "@/lib/finance";
@@ -227,6 +228,27 @@ export default function Home() {
     );
   }, [transactions, selectedMonth]);
 
+  // Expenses tagged "Savings" count as money added to savings.
+  const allSavingsEntries = useMemo<SavingsEntry[]>(() => {
+    const fromTransactions: SavingsEntry[] = transactions
+      .filter(
+        (transaction) =>
+          transaction.type === "expense" && transaction.category === "Savings"
+      )
+      .map((transaction) => ({
+        id: transaction.id,
+        account: "savings",
+        amount: transaction.amount,
+        date: transaction.date,
+        note: transaction.name,
+        source: "transaction",
+      }));
+
+    return [...savingsEntries, ...fromTransactions];
+  }, [savingsEntries, transactions]);
+
+  const monthSavingsTotal = sumSavings(allSavingsEntries, "savings", selectedMonth);
+
   const subscriptionExpenses = useMemo(() => {
     return subscriptions.reduce((total, subscription) => {
       return (
@@ -400,13 +422,14 @@ export default function Home() {
           <BudgetPanel
             budgets={budgets}
             updateBudget={updateBudget}
+            savingsThisMonth={monthSavingsTotal}
             categoryTotals={categoryTotals}
           />
         )}
 
         {activeTab === "savings" && (
           <SavingsPanel
-            entries={savingsEntries}
+            entries={allSavingsEntries}
             setEntries={setSavingsEntries}
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}

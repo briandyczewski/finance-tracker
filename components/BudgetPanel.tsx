@@ -11,6 +11,8 @@ type BudgetPanelProps = {
   updateBudget: (category: string, value: number) => void;
 
   categoryTotals: CategoryTotal[];
+  // Savings tab total for the month (manual entries + Savings transactions)
+  savingsThisMonth: number;
 };
 
 const goalCategories = ["Savings"];
@@ -19,6 +21,7 @@ export default function BudgetPanel({
   budgets,
   updateBudget,
   categoryTotals,
+  savingsThisMonth,
 }: BudgetPanelProps) {
   return (
     <section className="card">
@@ -36,7 +39,9 @@ export default function BudgetPanel({
           )
           .map((category) => {
             const spent =
-              categoryTotals.find(
+              category === "Savings"
+                ? savingsThisMonth
+                : categoryTotals.find(
                 (item) =>
                   item.category === category
               )?.total || 0;

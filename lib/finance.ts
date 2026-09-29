@@ -82,6 +82,8 @@ export type SavingsEntry = {
   amount: number;
   date: string;
   note: string;
+  // "transaction" = pulled automatically from a Savings-category expense
+  source?: "manual" | "transaction";
 };
 
 export function sumSavings(

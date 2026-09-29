@@ -146,13 +146,16 @@ export default function SavingsPanel({
   async function deleteEntry(id: number) {
     const { error } = await supabase.from("savings_entries").delete().eq("id", id);
 
+
     if (error) {
       console.error("Error deleting entry:", error);
       alert("Entry could not be deleted.");
       return;
     }
 
-    setEntries((current) => current.filter((entry) => entry.id !== id));
+    setEntries((current) =>
+      current.filter((entry) => entry.source === "transaction" || entry.id !== id)
+    );
   }
 
   return (
@@ -300,7 +303,7 @@ export default function SavingsPanel({
           )}
 
           {monthEntries.map((entry) => (
-            <article className="transaction-card" key={entry.id}>
+            <article className="transaction-card" key={`${entry.source ?? "manual"}-${entry.id}`}>
               <div>
                 <h3>
                   {entry.note || (entry.account === "savings" ? "Savings" : "Investment")}{" "}
@@ -317,13 +320,17 @@ export default function SavingsPanel({
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="delete-button"
-                onClick={() => deleteEntry(entry.id)}
-              >
-                Delete
-              </button>
+              {entry.source === "transaction" ? (
+                <span className="auto-tag">From transactions</span>
+              ) : (
+                <button
+                  type="button"
+                  className="delete-button"
+                  onClick={() => deleteEntry(entry.id)}
+                >
+                  Delete
+                </button>
+              )}
             </article>
           ))}
         </div>
