@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 import {
   Transaction,
   Subscription,
+  SavingsEntry,
   categories,
   getToday,
   countSubscriptionCharges,
@@ -20,21 +21,23 @@ import HistoryPanel from "@/components/HistoryPanel";
 import BudgetPanel from "@/components/BudgetPanel";
 import RecommendationCard from "@/components/RecommendationCard";
 import TrendChart from "@/components/TrendChart";
+import SavingsPanel from "@/components/SavingsPanel";
 
 export default function Home() {
   const today = getToday();
   const currentMonth = today.slice(0, 7);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "budgets" | "subscriptions" | "history"
+    "dashboard" | "budgets" | "savings" | "subscriptions" | "history"
   >("dashboard");
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
+  const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
   const [darkMode, setDarkMode] = useState(false);
-  const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
+  const budgetSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     async function loadTransactions() {
@@ -86,41 +89,137 @@ export default function Home() {
       }
     }
 
-    const savedBudgets = localStorage.getItem("finance-budgets");
-    const savedDarkMode = localStorage.getItem("finance-dark-mode");
+    async function loadBudgets() {
+      const { data, error } = await supabase.from("budgets").select("*");
 
-    if (savedBudgets) {
-      setBudgets(JSON.parse(savedBudgets));
+      if (error) {
+        console.error("Error loading budgets:", error);
+        return;
+      }
+
+      const loaded: Record<string, number> = {};
+      for (const row of data ?? []) {
+        loaded[row.category] = Number(row.amount);
+      }
+
+      // One-time move of budgets that were only saved in this browser.
+      const legacy = localStorage.getItem("finance-budgets");
+      if (legacy) {
+        try {
+          const legacyBudgets: Record<string, number> = JSON.parse(legacy);
+          const toUpload = Object.entries(legacyBudgets)
+            .filter(([category, amount]) => !(category in loaded) && Number(amount) > 0)
+            .map(([category, amount]) => ({ category, amount: Number(amount) }));
+
+          if (toUpload.length > 0) {
+            const { error: uploadError } = await supabase.from("budgets").upsert(toUpload);
+            if (uploadError) {
+              console.error("Error moving budgets to Supabase:", uploadError);
+              setBudgets({ ...legacyBudgets, ...loaded });
+              return;
+            }
+            toUpload.forEach(({ category, amount }) => (loaded[category] = amount));
+          }
+          localStorage.removeItem("finance-budgets");
+        } catch {
+          localStorage.removeItem("finance-budgets");
+        }
+      }
+
+      setBudgets(loaded);
     }
 
-    if (savedDarkMode === "true") {
-      setDarkMode(true);
+    async function loadSettings() {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "dark_mode")
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error loading settings:", error);
+        return;
+      }
+
+      const legacy = localStorage.getItem("finance-dark-mode");
+
+      if (data) {
+        setDarkMode(data.value === true);
+      } else if (legacy !== null) {
+        const value = legacy === "true";
+        setDarkMode(value);
+        await supabase.from("app_settings").upsert({ key: "dark_mode", value });
+      }
+
+      localStorage.removeItem("finance-dark-mode");
+    }
+
+    async function loadSavings() {
+      const { data, error } = await supabase
+        .from("savings_entries")
+        .select("*")
+        .order("date", { ascending: false });
+
+      if (error) {
+        console.error("Error loading savings:", error);
+        return;
+      }
+
+      setSavingsEntries(
+        (data ?? []).map((item) => ({
+          id: Number(item.id),
+          account: item.account,
+          amount: Number(item.amount),
+          date: item.date,
+          note: item.note ?? "",
+        }))
+      );
     }
 
     loadTransactions();
     loadSubscriptions();
-
-    setHasLoadedSavedData(true);
+    loadBudgets();
+    loadSettings();
+    loadSavings();
   }, []);
 
   useEffect(() => {
-    if (!hasLoadedSavedData) return;
-
-    localStorage.setItem(
-      "finance-budgets",
-      JSON.stringify(budgets)
-    );
-  }, [budgets, hasLoadedSavedData]);
-
-  useEffect(() => {
-    localStorage.setItem("finance-dark-mode", String(darkMode));
-
     if (darkMode) {
       document.body.classList.add("dark-mode");
     } else {
       document.body.classList.remove("dark-mode");
     }
   }, [darkMode]);
+
+  async function toggleDarkMode() {
+    const value = !darkMode;
+    setDarkMode(value);
+
+    const { error } = await supabase
+      .from("app_settings")
+      .upsert({ key: "dark_mode", value, updated_at: new Date().toISOString() });
+
+    if (error) console.error("Error saving dark mode:", error);
+  }
+
+  function updateBudget(category: string, value: number) {
+    setBudgets((current) => ({ ...current, [category]: value }));
+
+    // Wait until typing pauses before saving.
+    clearTimeout(budgetSaveTimers.current[category]);
+    budgetSaveTimers.current[category] = setTimeout(async () => {
+      const { error } = await supabase.from("budgets").upsert({
+        category,
+        amount: value > 0 ? value : 0,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Error saving budget:", error);
+        alert(`Budget for ${category} could not be saved.`);
+      }
+    }, 600);
+  }
 
   const monthlyTransactions = useMemo(() => {
     return transactions.filter((transaction) =>
@@ -219,13 +318,13 @@ export default function Home() {
           <button
             type="button"
             className="theme-toggle"
-            onClick={() => setDarkMode((current) => !current)}
+            onClick={toggleDarkMode}
           >
             {darkMode ? "☀️" : "🌙"}
           </button>
         </header>
 
-        <nav className="tabs tabs-four">
+        <nav className="tabs tabs-five">
           <button
             className={activeTab === "dashboard" ? "tab active" : "tab"}
             onClick={() => setActiveTab("dashboard")}
@@ -238,6 +337,13 @@ export default function Home() {
             onClick={() => setActiveTab("budgets")}
           >
             Budgets
+          </button>
+
+          <button
+            className={activeTab === "savings" ? "tab active" : "tab"}
+            onClick={() => setActiveTab("savings")}
+          >
+            Savings
           </button>
 
           <button
@@ -293,8 +399,17 @@ export default function Home() {
         {activeTab === "budgets" && (
           <BudgetPanel
             budgets={budgets}
-            setBudgets={setBudgets}
+            updateBudget={updateBudget}
             categoryTotals={categoryTotals}
+          />
+        )}
+
+        {activeTab === "savings" && (
+          <SavingsPanel
+            entries={savingsEntries}
+            setEntries={setSavingsEntries}
+            selectedMonth={selectedMonth}
+            setSelectedMonth={setSelectedMonth}
           />
         )}
 

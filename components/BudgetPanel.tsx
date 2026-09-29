@@ -8,11 +8,7 @@ type CategoryTotal = {
 type BudgetPanelProps = {
   budgets: Record<string, number>;
 
-  setBudgets: React.Dispatch<
-    React.SetStateAction<
-      Record<string, number>
-    >
-  >;
+  updateBudget: (category: string, value: number) => void;
 
   categoryTotals: CategoryTotal[];
 };
@@ -21,19 +17,9 @@ const goalCategories = ["Savings"];
 
 export default function BudgetPanel({
   budgets,
-  setBudgets,
+  updateBudget,
   categoryTotals,
 }: BudgetPanelProps) {
-  function updateBudget(
-    category: string,
-    value: string
-  ) {
-    setBudgets((current) => ({
-      ...current,
-      [category]: Number(value),
-    }));
-  }
-
   return (
     <section className="card">
       <div className="section-heading">
@@ -121,7 +107,7 @@ export default function BudgetPanel({
                     onChange={(e) =>
                       updateBudget(
                         category,
-                        e.target.value
+                        Number(e.target.value)
                       )
                     }
                     placeholder={

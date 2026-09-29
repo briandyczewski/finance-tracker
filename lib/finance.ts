@@ -72,3 +72,41 @@ export function countSubscriptionCharges(
 
   return count;
 }
+
+export type SavingsAccount = "savings" | "investment";
+
+export type SavingsEntry = {
+  id: number;
+  account: SavingsAccount;
+  // Positive = money added, negative = money withdrawn
+  amount: number;
+  date: string;
+  note: string;
+};
+
+export function sumSavings(
+  entries: SavingsEntry[],
+  account: SavingsAccount,
+  month?: string
+) {
+  return entries
+    .filter(
+      (entry) =>
+        entry.account === account &&
+        (!month || entry.date.startsWith(month))
+    )
+    .reduce((sum, entry) => sum + entry.amount, 0);
+}
+
+export function formatMoney(value: number) {
+  const sign = value < 0 ? "-" : "";
+  return `${sign}$${Math.abs(value).toFixed(2)}`;
+}
+
+export function formatMonthLabel(month: string) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  return new Date(year, monthIndex - 1, 1).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}

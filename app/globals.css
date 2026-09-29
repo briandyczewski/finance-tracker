@@ -762,3 +762,69 @@ body.dark-mode .theme-toggle {
   background: linear-gradient(145deg, #f8fafc, #cbd5e1);
   color: #0f172a;
 }
+/* Savings & investments */
+.tabs-five {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (max-width: 420px) {
+  .tabs-five .tab {
+    font-size: 11px;
+    padding: 12px 2px;
+  }
+}
+
+.savings-subhead {
+  margin: 4px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.savings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.savings-grid:last-child {
+  margin-bottom: 0;
+}
+
+.savings-span {
+  grid-column: 1 / -1;
+}
+
+.savings-grid .recommendation-card strong {
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.invest-text {
+  color: var(--blue);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+body.dark-mode .savings-subhead {
+  color: #94a3b8;
+}
+
+body.dark-mode .green-card {
+  background: linear-gradient(145deg, rgba(18, 183, 106, 0.2), rgba(15, 23, 42, 0.9));
+}
+
+body.dark-mode .blue-card {
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.9));
+  color: #93c5fd;
+}
+
+body.dark-mode .invest-text {
+  color: #93c5fd;
+}
