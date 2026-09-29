@@ -839,3 +839,12 @@ body.dark-mode .invest-text {
   font-weight: 900;
   white-space: nowrap;
 }
+
+.target-progress {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.85;
+}

@@ -402,6 +402,8 @@ export default function Home() {
             <RecommendationCard
               income={income}
               expenses={expenses}
+              savedThisMonth={monthSavingsTotal}
+              investedThisMonth={monthInvestingTotal}
             />
 
             <TrendChart monthSummaries={monthSummaries} />
