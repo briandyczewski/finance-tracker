@@ -228,16 +228,19 @@ export default function Home() {
     );
   }, [transactions, selectedMonth]);
 
-  // Expenses tagged "Savings" count as money added to savings.
+  // Expenses tagged "Savings" or "Investing" count as money added
+  // to savings or investments.
   const allSavingsEntries = useMemo<SavingsEntry[]>(() => {
     const fromTransactions: SavingsEntry[] = transactions
       .filter(
         (transaction) =>
-          transaction.type === "expense" && transaction.category === "Savings"
+          transaction.type === "expense" &&
+          (transaction.category === "Savings" ||
+            transaction.category === "Investing")
       )
       .map((transaction) => ({
         id: transaction.id,
-        account: "savings",
+        account: transaction.category === "Investing" ? "investment" : "savings",
         amount: transaction.amount,
         date: transaction.date,
         note: transaction.name,
@@ -248,6 +251,7 @@ export default function Home() {
   }, [savingsEntries, transactions]);
 
   const monthSavingsTotal = sumSavings(allSavingsEntries, "savings", selectedMonth);
+  const monthInvestingTotal = sumSavings(allSavingsEntries, "investment", selectedMonth);
 
   const subscriptionExpenses = useMemo(() => {
     return subscriptions.reduce((total, subscription) => {
@@ -423,6 +427,7 @@ export default function Home() {
             budgets={budgets}
             updateBudget={updateBudget}
             savingsThisMonth={monthSavingsTotal}
+            investingThisMonth={monthInvestingTotal}
             categoryTotals={categoryTotals}
           />
         )}

@@ -25,6 +25,7 @@ export const categories = [
   "Gas",
   "Fun",
   "Savings",
+  "Investing",
   "Subscriptions",
   "Other",
 ];

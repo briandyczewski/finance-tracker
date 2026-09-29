@@ -13,15 +13,18 @@ type BudgetPanelProps = {
   categoryTotals: CategoryTotal[];
   // Savings tab total for the month (manual entries + Savings transactions)
   savingsThisMonth: number;
+  // Savings tab investment total for the month
+  investingThisMonth: number;
 };
 
-const goalCategories = ["Savings"];
+const goalCategories = ["Savings", "Investing"];
 
 export default function BudgetPanel({
   budgets,
   updateBudget,
   categoryTotals,
   savingsThisMonth,
+  investingThisMonth,
 }: BudgetPanelProps) {
   return (
     <section className="card">
@@ -41,7 +44,9 @@ export default function BudgetPanel({
             const spent =
               category === "Savings"
                 ? savingsThisMonth
-                : categoryTotals.find(
+                : category === "Investing"
+                  ? investingThisMonth
+                  : categoryTotals.find(
                 (item) =>
                   item.category === category
               )?.total || 0;
@@ -97,7 +102,9 @@ export default function BudgetPanel({
                     <p>
                       ${spent.toFixed(2)}{" "}
                       {isGoal
-                        ? "saved"
+                        ? category === "Investing"
+                          ? "invested"
+                          : "saved"
                         : "spent"}
 
                       {target > 0 &&

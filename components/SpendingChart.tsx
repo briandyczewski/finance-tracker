@@ -19,6 +19,7 @@ const chartColors = [
   "#22c55e",
   "#64748b",
   "#0f172a",
+  "#eab308",
 ];
 
 export default function SpendingChart({
