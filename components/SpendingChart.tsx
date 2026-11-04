@@ -1,4 +1,10 @@
+"use client";
+
+import type { CSSProperties } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import CategoryIcon from "@/components/CategoryIcon";
+import { categoryStyle } from "@/lib/categories";
+import { formatMoney } from "@/lib/finance";
 
 type CategoryTotal = {
   category: string;
@@ -10,77 +16,81 @@ type SpendingChartProps = {
   expenses: number;
 };
 
-const chartColors = [
-  "#2563eb",
-  "#14b8a6",
-  "#f97316",
-  "#a855f7",
-  "#ef4444",
-  "#22c55e",
-  "#64748b",
-  "#0f172a",
-  "#eab308",
-];
-
-export default function SpendingChart({
-  categoryTotals,
-  expenses,
-}: SpendingChartProps) {
-  const pieData = categoryTotals.filter((item) => item.total > 0);
+export default function SpendingChart({ categoryTotals, expenses }: SpendingChartProps) {
+  const pieData = categoryTotals
+    .filter((item) => item.total > 0)
+    .sort((a, b) => b.total - a.total);
 
   return (
     <section className="card">
-      <div className="section-heading">
-        <h2>Spending by Category</h2>
-        <span>${expenses.toFixed(2)} total</span>
+      <div className="card-head">
+        <h2>Spending by category</h2>
+        <span>{formatMoney(expenses)} total</span>
       </div>
 
       {pieData.length > 0 ? (
-        <>
-          <div className="chart-wrapper">
-            <ResponsiveContainer width="100%" height={240}>
+        <div className="breakdown">
+          <div className="donut">
+            <ResponsiveContainer width="100%" height={196}>
               <PieChart>
                 <Pie
                   data={pieData}
                   dataKey="total"
                   nameKey="category"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={62}
+                  innerRadius={66}
                   outerRadius={92}
-                  paddingAngle={4}
+                  paddingAngle={2}
+                  cornerRadius={4}
+                  stroke="none"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={entry.category}
-                      fill={chartColors[index % chartColors.length]}
-                    />
+                  {pieData.map((item) => (
+                    <Cell key={item.category} fill={categoryStyle(item.category).color} />
                   ))}
                 </Pie>
-
-                <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
+                <Tooltip
+                  content={({ active, payload }) =>
+                    active && payload?.length ? (
+                      <div className="chart-tooltip">
+                        <strong>{payload[0].name}</strong>
+                        <span>{formatMoney(Number(payload[0].value))}</span>
+                      </div>
+                    ) : null
+                  }
+                />
               </PieChart>
             </ResponsiveContainer>
+            <div className="donut-center">
+              <span>Total</span>
+              <strong>{formatMoney(expenses)}</strong>
+            </div>
           </div>
 
-          <div className="legend-list">
-            {pieData.map((item, index) => (
-              <div className="legend-row" key={item.category}>
-                <div>
-                  <span
-                    className="legend-dot"
-                    style={{
-                      backgroundColor: chartColors[index % chartColors.length],
-                    }}
-                  />
-                  <span>{item.category}</span>
+          <div className="row-list">
+            {pieData.map((item) => {
+              const share = expenses > 0 ? (item.total / expenses) * 100 : 0;
+              return (
+                <div className="list-row stacked" key={item.category}>
+                  <CategoryIcon category={item.category} size="sm" />
+                  <div className="row-text">
+                    <div className="row-line">
+                      <strong>{item.category}</strong>
+                      <strong className="row-value">{formatMoney(item.total)}</strong>
+                    </div>
+                    <div className="row-line">
+                      <div
+                        className="bar thin"
+                        style={{ "--c": categoryStyle(item.category).color } as CSSProperties}
+                      >
+                        <div className="bar-fill" style={{ width: `${share}%` }} />
+                      </div>
+                      <span className="pct">{Math.round(share)}%</span>
+                    </div>
+                  </div>
                 </div>
-
-                <strong>${item.total.toFixed(2)}</strong>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </>
+        </div>
       ) : (
         <p className="empty-state">No expenses for this month yet.</p>
       )}

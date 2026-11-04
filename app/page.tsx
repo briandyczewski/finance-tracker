@@ -11,26 +11,43 @@ import {
   sumSavings,
   getToday,
   countSubscriptionCharges,
+  shiftMonth,
 } from "@/lib/finance";
 
+import AppShell, { type Tab } from "@/components/AppShell";
+import PageHeader from "@/components/PageHeader";
+import Sheet from "@/components/Sheet";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionForm from "@/components/TransactionForm";
 import SpendingChart from "@/components/SpendingChart";
 import TransactionList from "@/components/TransactionList";
+import UpcomingCard from "@/components/UpcomingCard";
 import SubscriptionPanel from "@/components/SubscriptionPanel";
+import SubscriptionForm from "@/components/SubscriptionForm";
 import HistoryPanel from "@/components/HistoryPanel";
 import BudgetPanel from "@/components/BudgetPanel";
 import RecommendationCard from "@/components/RecommendationCard";
 import TrendChart from "@/components/TrendChart";
 import SavingsPanel from "@/components/SavingsPanel";
+import SavingsForm from "@/components/SavingsForm";
+
+type SheetName = "transaction" | "savings" | "subscription";
+
+const pageTitles: Record<Tab, string> = {
+  dashboard: "Overview",
+  budgets: "Budgets",
+  savings: "Savings & investing",
+  subscriptions: "Recurring",
+  history: "History",
+};
 
 export default function Home() {
   const today = getToday();
   const currentMonth = today.slice(0, 7);
 
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "budgets" | "savings" | "subscriptions" | "history"
-  >("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [openSheet, setOpenSheet] = useState<SheetName | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -208,11 +225,14 @@ export default function Home() {
       }
 
       setUserId(signedInId);
-      loadTransactions();
-      loadSubscriptions();
-      loadBudgets(signedInId);
-      loadSettings(signedInId);
-      loadSavings();
+      await Promise.all([
+        loadTransactions(),
+        loadSubscriptions(),
+        loadBudgets(signedInId),
+        loadSettings(signedInId),
+        loadSavings(),
+      ]);
+      setLoaded(true);
     }
 
     loadAll();
@@ -346,10 +366,7 @@ export default function Home() {
   });
 
   const monthSummaries = Array.from({ length: 12 }, (_, index) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - index);
-
-    const month = date.toISOString().slice(0, 7);
+    const month = shiftMonth(currentMonth, -index);
 
     const monthlyTx = transactions.filter((transaction) =>
       transaction.date.startsWith(month)
@@ -381,140 +398,134 @@ export default function Home() {
     };
   });
 
-  return (
-    <main className="app-shell">
-      <div className="app-container">
-        <header className="app-header">
-          <div>
-            <p className="eyebrow">Welcome back</p>
-            <h1>Finance Tracker</h1>
-          </div>
+  const closeSheet = () => setOpenSheet(null);
 
-          <div className="header-actions">
-            <button
-              type="button"
-              className="sign-out-button"
-              onClick={signOut}
-            >
-              Sign out
-            </button>
-
-            <button
-              type="button"
-              className="theme-toggle"
-              onClick={toggleDarkMode}
-            >
-              {darkMode ? "☀️" : "🌙"}
-            </button>
-          </div>
-        </header>
-
-        <nav className="tabs tabs-five">
-          <button
-            className={activeTab === "dashboard" ? "tab active" : "tab"}
-            onClick={() => setActiveTab("dashboard")}
-          >
-            Home
-          </button>
-
-          <button
-            className={activeTab === "budgets" ? "tab active" : "tab"}
-            onClick={() => setActiveTab("budgets")}
-          >
-            Budgets
-          </button>
-
-          <button
-            className={activeTab === "savings" ? "tab active" : "tab"}
-            onClick={() => setActiveTab("savings")}
-          >
-            Savings
-          </button>
-
-          <button
-            className={
-              activeTab === "subscriptions" ? "tab active" : "tab"
-            }
-            onClick={() => setActiveTab("subscriptions")}
-          >
-            Subs
-          </button>
-
-          <button
-            className={activeTab === "history" ? "tab active" : "tab"}
-            onClick={() => setActiveTab("history")}
-          >
-            History
-          </button>
-        </nav>
-
-        {activeTab === "dashboard" && (
-          <div className="screen-stack">
-            <BalanceCard
-              selectedMonth={selectedMonth}
-              setSelectedMonth={setSelectedMonth}
-              income={income}
-              expenses={expenses}
-              balance={balance}
-            />
-
-            <RecommendationCard
-              income={income}
-              expenses={expenses}
-              savedThisMonth={monthSavingsTotal}
-              investedThisMonth={monthInvestingTotal}
-            />
-
-            <TrendChart monthSummaries={monthSummaries} />
-
-            <TransactionForm
-              setTransactions={setTransactions}
-            />
-
-            <SpendingChart
-              categoryTotals={categoryTotals}
-              expenses={expenses}
-            />
-
-            <TransactionList
-              transactions={monthlyTransactions}
-              setTransactions={setTransactions}
-            />
-          </div>
-        )}
-
-        {activeTab === "budgets" && (
-          <BudgetPanel
-            budgets={budgets}
-            updateBudget={updateBudget}
-            savingsThisMonth={monthSavingsTotal}
-            investingThisMonth={monthInvestingTotal}
-            categoryTotals={categoryTotals}
-          />
-        )}
-
-        {activeTab === "savings" && (
-          <SavingsPanel
-            entries={allSavingsEntries}
-            setEntries={setSavingsEntries}
-            selectedMonth={selectedMonth}
-            setSelectedMonth={setSelectedMonth}
-          />
-        )}
-
-        {activeTab === "subscriptions" && (
-          <SubscriptionPanel
-            subscriptions={subscriptions}
-            setSubscriptions={setSubscriptions}
-            selectedMonth={selectedMonth}
-            subscriptionExpenses={subscriptionExpenses}
-          />
-        )}
-
-        {activeTab === "history" && (
-          <HistoryPanel monthSummaries={monthSummaries} />
-        )}
+  if (!loaded) {
+    return (
+      <div className="loading-screen" aria-busy="true" aria-label="Loading">
+        <span className="brand-mark pulse" />
       </div>
-    </main>
+    );
+  }
+
+  // The main button in each page's header.
+  const headerActions: Record<Tab, { actionLabel?: string; onAction?: () => void }> = {
+    dashboard: { actionLabel: "Add", onAction: () => setOpenSheet("transaction") },
+    budgets: {},
+    savings: { actionLabel: "Log money", onAction: () => setOpenSheet("savings") },
+    subscriptions: { actionLabel: "Add", onAction: () => setOpenSheet("subscription") },
+    history: {},
+  };
+
+  return (
+    <AppShell
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      darkMode={darkMode}
+      onToggleDarkMode={toggleDarkMode}
+      onSignOut={signOut}
+    >
+      <PageHeader
+        eyebrow={activeTab === "dashboard" ? "Welcome back" : undefined}
+        title={pageTitles[activeTab]}
+        month={activeTab === "history" ? undefined : selectedMonth}
+        currentMonth={currentMonth}
+        setMonth={setSelectedMonth}
+        {...headerActions[activeTab]}
+      />
+
+      {activeTab === "dashboard" && (
+        <div className="split home">
+          <div className="split-main">
+            <div className="o-1">
+              <BalanceCard
+                month={selectedMonth}
+                today={today}
+                income={income}
+                expenses={expenses}
+                balance={balance}
+                transactions={transactions}
+                subscriptions={subscriptions}
+              />
+            </div>
+            <div className="o-3">
+              <SpendingChart categoryTotals={categoryTotals} expenses={expenses} />
+            </div>
+            <div className="o-5">
+              <TransactionList
+                transactions={monthlyTransactions}
+                setTransactions={setTransactions}
+                today={today}
+              />
+            </div>
+          </div>
+
+          <div className="split-side">
+            <div className="o-2">
+              <RecommendationCard
+                income={income}
+                expenses={expenses}
+                savedThisMonth={monthSavingsTotal}
+                investedThisMonth={monthInvestingTotal}
+              />
+            </div>
+            <div className="o-4">
+              <UpcomingCard
+                subscriptions={subscriptions}
+                month={selectedMonth}
+                today={today}
+                onSeeAll={() => setActiveTab("subscriptions")}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "budgets" && (
+        <BudgetPanel
+          budgets={budgets}
+          updateBudget={updateBudget}
+          savingsThisMonth={monthSavingsTotal}
+          investingThisMonth={monthInvestingTotal}
+          categoryTotals={categoryTotals}
+        />
+      )}
+
+      {activeTab === "savings" && (
+        <SavingsPanel
+          entries={allSavingsEntries}
+          setEntries={setSavingsEntries}
+          selectedMonth={selectedMonth}
+        />
+      )}
+
+      {activeTab === "subscriptions" && (
+        <SubscriptionPanel
+          subscriptions={subscriptions}
+          setSubscriptions={setSubscriptions}
+          selectedMonth={selectedMonth}
+          subscriptionExpenses={subscriptionExpenses}
+        />
+      )}
+
+      {activeTab === "history" && (
+        <div className="stack">
+          <TrendChart monthSummaries={monthSummaries} />
+          <HistoryPanel monthSummaries={monthSummaries} />
+        </div>
+      )}
+
+      <Sheet open={openSheet === "transaction"} title="Add transaction" onClose={closeSheet}>
+        <TransactionForm setTransactions={setTransactions} onDone={closeSheet} />
+      </Sheet>
+
+      <Sheet open={openSheet === "savings"} title="Log money" onClose={closeSheet}>
+        <SavingsForm setEntries={setSavingsEntries} onDone={closeSheet} />
+      </Sheet>
+
+      <Sheet open={openSheet === "subscription"} title="Add recurring charge" onClose={closeSheet}>
+        <SubscriptionForm setSubscriptions={setSubscriptions} onDone={closeSheet} />
+      </Sheet>
+    </AppShell>
   );
 }

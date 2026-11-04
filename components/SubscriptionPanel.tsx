@@ -1,29 +1,23 @@
 "use client";
 
+import { Trash } from "lucide-react";
+import CategoryIcon from "@/components/CategoryIcon";
 import {
-  FormEvent,
-  useState,
-} from "react";
-
-import {
-  Frequency,
-  getToday,
   Subscription,
-  countSubscriptionCharges,
+  formatMoney,
+  formatMonthLong,
+  subscriptionChargeDays,
 } from "@/lib/finance";
-
 import { supabase } from "@/lib/supabase";
 
 type SubscriptionPanelProps = {
   subscriptions: Subscription[];
-
-  setSubscriptions: React.Dispatch<
-    React.SetStateAction<Subscription[]>
-  >;
-
+  setSubscriptions: React.Dispatch<React.SetStateAction<Subscription[]>>;
   selectedMonth: string;
   subscriptionExpenses: number;
 };
+
+const frequencyLabel = { weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
 
 export default function SubscriptionPanel({
   subscriptions,
@@ -31,264 +25,94 @@ export default function SubscriptionPanel({
   selectedMonth,
   subscriptionExpenses,
 }: SubscriptionPanelProps) {
-  const today = getToday();
+  const monthName = formatMonthLong(selectedMonth).split(" ")[0];
+  const shortMonth = monthName.slice(0, 3);
 
-  const [subName, setSubName] =
-    useState("");
-
-  const [subAmount, setSubAmount] =
-    useState("");
-
-  const [subFrequency, setSubFrequency] =
-    useState<Frequency>("monthly");
-
-  const [subStartDate, setSubStartDate] =
-    useState(today);
-
-  async function addSubscription(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    const numericAmount =
-      Number(subAmount);
-
-    if (
-      !subName.trim() ||
-      !subStartDate ||
-      !numericAmount ||
-      numericAmount <= 0
-    ) {
-      return;
-    }
-
-    const newSubscription = {
-      name: subName.trim(),
-      amount: numericAmount,
-      frequency: subFrequency,
-      start_date: subStartDate,
-    };
-
-    const { data, error } = await supabase
-      .from("subscriptions")
-      .insert(newSubscription)
-      .select()
-      .single();
+  async function deleteSubscription(id: number) {
+    const { error } = await supabase.from("subscriptions").delete().eq("id", id);
 
     if (error) {
-      console.error(
-        "Error saving subscription:",
-        error
-      );
-
-      alert(
-        "Subscription could not be saved."
-      );
-
+      console.error("Error deleting subscription:", error);
+      alert("Subscription could not be deleted.");
       return;
     }
 
-    const savedSubscription: Subscription = {
-      id: Number(data.id),
-      name: data.name,
-      amount: Number(data.amount),
-      frequency: data.frequency as Frequency,
-      startDate: data.start_date,
-    };
-
-    setSubscriptions((current) => [
-      savedSubscription,
-      ...current,
-    ]);
-
-    setSubName("");
-    setSubAmount("");
-    setSubFrequency("monthly");
-    setSubStartDate(today);
+    setSubscriptions((current) => current.filter((sub) => sub.id !== id));
   }
 
-  async function deleteSubscription(
-    id: number
-  ) {
-    const { error } = await supabase
-      .from("subscriptions")
-      .delete()
-      .eq("id", id);
+  // Soonest charge in the selected month first; ones with no charge this month last.
+  const rows = subscriptions
+    .map((subscription) => ({
+      subscription,
+      days: subscriptionChargeDays(subscription, selectedMonth),
+    }))
+    .sort((a, b) => (a.days[0] ?? 99) - (b.days[0] ?? 99));
 
-    if (error) {
-      console.error(
-        "Error deleting subscription:",
-        error
-      );
-
-      alert(
-        "Subscription could not be deleted."
-      );
-
-      return;
-    }
-
-    setSubscriptions((current) =>
-      current.filter(
-        (sub) => sub.id !== id
-      )
-    );
-  }
+  const chargedCount = rows.filter((row) => row.days.length > 0).length;
 
   return (
-    <div className="screen-stack">
-      <form
-        className="card"
-        onSubmit={addSubscription}
-      >
-        <div className="section-heading">
-          <h2>Add Subscription</h2>
+    <div className="split">
+      <div className="split-side">
+        <section className="card hero-card o-1">
+          <p className="hero-label">Recurring in {monthName}</p>
+          <p className="hero-amount">{formatMoney(subscriptionExpenses)}</p>
+          <div className="stat-row two">
+            <div className="stat">
+              <span>Subscriptions</span>
+              <strong>{subscriptions.length}</strong>
+            </div>
+            <div className="stat">
+              <span>Charging this month</span>
+              <strong>{chargedCount}</strong>
+            </div>
+          </div>
+        </section>
+      </div>
 
-          <span>Auto expenses</span>
-        </div>
+      <div className="split-main">
+        <section className="card o-2">
+          <div className="card-head">
+            <h2>Your subscriptions</h2>
+            <span>{formatMoney(subscriptionExpenses)} this month</span>
+          </div>
 
-        <label>
-          <span>Name</span>
-
-          <input
-            value={subName}
-            onChange={(e) =>
-              setSubName(e.target.value)
-            }
-            placeholder="Ex: Netflix, gym, Spotify"
-          />
-        </label>
-
-        <label>
-          <span>Amount</span>
-
-          <input
-            value={subAmount}
-            onChange={(e) =>
-              setSubAmount(e.target.value)
-            }
-            placeholder="0.00"
-            type="number"
-            min="0"
-            step="0.01"
-          />
-        </label>
-
-        <div className="input-grid">
-          <label>
-            <span>Frequency</span>
-
-            <select
-              value={subFrequency}
-              onChange={(e) =>
-                setSubFrequency(
-                  e.target.value as Frequency
-                )
-              }
-            >
-              <option value="weekly">
-                Weekly
-              </option>
-
-              <option value="monthly">
-                Monthly
-              </option>
-
-              <option value="yearly">
-                Yearly
-              </option>
-            </select>
-          </label>
-
-          <label>
-            <span>Start Date</span>
-
-            <input
-              value={subStartDate}
-              onChange={(e) =>
-                setSubStartDate(
-                  e.target.value
-                )
-              }
-              type="date"
-            />
-          </label>
-        </div>
-
-        <button
-          className="primary-button"
-          type="submit"
-        >
-          Add Subscription
-        </button>
-      </form>
-
-      <section className="card">
-        <div className="section-heading">
-          <h2>Your Subscriptions</h2>
-
-          <span>
-            $
-            {subscriptionExpenses.toFixed(
-              2
-            )}{" "}
-            this month
-          </span>
-        </div>
-
-        <div className="transaction-list">
-          {subscriptions.map(
-            (subscription) => {
-              const charges =
-                countSubscriptionCharges(
-                  subscription,
-                  selectedMonth
-                );
-
-              return (
-                <article
-                  className="transaction-card"
-                  key={subscription.id}
-                >
-                  <div>
-                    <h3>
-                      {subscription.name}
-                    </h3>
-
-                    <p>
-                      $
-                      {subscription.amount.toFixed(
-                        2
-                      )}{" "}
-                      •{" "}
-                      {
-                        subscription.frequency
-                      }{" "}
-                      • {charges} charge
-                      {charges === 1
-                        ? ""
-                        : "s"}{" "}
-                      this month
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="delete-button"
-                    onClick={() =>
-                      deleteSubscription(
-                        subscription.id
-                      )
-                    }
-                  >
-                    Delete
-                  </button>
-                </article>
-              );
-            }
+          {rows.length === 0 && (
+            <p className="empty-state">No subscriptions yet. Add one with the button above.</p>
           )}
-        </div>
-      </section>
+
+          <div className="row-list">
+            {rows.map(({ subscription, days }) => (
+              <div className="list-row" key={subscription.id}>
+                <CategoryIcon
+                  category="Subscriptions"
+                  letter={subscription.name.charAt(0).toUpperCase()}
+                />
+                <div className="row-text">
+                  <strong>{subscription.name}</strong>
+                  <span>
+                    {frequencyLabel[subscription.frequency]} ·{" "}
+                    {days.length === 0
+                      ? "No charge this month"
+                      : `${days.length} charge${days.length === 1 ? "" : "s"} this month (${days
+                          .map((day) => `${shortMonth} ${day}`)
+                          .join(", ")})`}
+                  </span>
+                </div>
+                <strong className="row-value">{formatMoney(subscription.amount)}</strong>
+                <button
+                  type="button"
+                  className="row-delete"
+                  onClick={() => deleteSubscription(subscription.id)}
+                  aria-label={`Delete ${subscription.name}`}
+                  title="Delete"
+                >
+                  <Trash size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

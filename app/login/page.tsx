@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -34,22 +35,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="app-shell">
-      <div className="app-container">
-        <header className="app-header">
+    <main className="auth-page">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <span className="brand-mark">
+            <Wallet size={24} strokeWidth={2.3} />
+          </span>
           <div>
-            <p className="eyebrow">Private</p>
             <h1>Finance Tracker</h1>
+            <p>Sign in to see your money</p>
           </div>
-        </header>
+        </div>
 
-        <form className="card" onSubmit={signIn}>
-          <div className="section-heading">
-            <h2>Sign in</h2>
-            <span>Your account only</span>
-          </div>
-
-          <label>
+        <form className="card form" onSubmit={signIn}>
+          <label className="field">
             <span>Email</span>
             <input
               type="email"
@@ -60,7 +59,7 @@ export default function LoginPage() {
             />
           </label>
 
-          <label>
+          <label className="field">
             <span>Password</span>
             <input
               type="password"
@@ -72,7 +71,7 @@ export default function LoginPage() {
           </label>
 
           {error && (
-            <p className="login-error" role="alert">
+            <p className="form-error" role="alert">
               {error}
             </p>
           )}

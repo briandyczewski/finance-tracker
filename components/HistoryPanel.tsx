@@ -1,3 +1,5 @@
+import { formatMoney, formatMonthLabel } from "@/lib/finance";
+
 type MonthSummary = {
   month: string;
   income: number;
@@ -8,46 +10,35 @@ type HistoryPanelProps = {
   monthSummaries: MonthSummary[];
 };
 
-export default function HistoryPanel({
-  monthSummaries,
-}: HistoryPanelProps) {
+export default function HistoryPanel({ monthSummaries }: HistoryPanelProps) {
   return (
     <section className="card">
-      <div className="section-heading">
-        <h2>Past Months</h2>
+      <div className="card-head">
+        <h2>Past months</h2>
         <span>Last 12 months</span>
       </div>
 
-      <div className="month-list">
-        {monthSummaries.map((month) => (
-          <article className="month-card" key={month.month}>
-            <h3>{month.month}</h3>
+      <div className="table">
+        <div className="table-row table-head">
+          <span>Month</span>
+          <span>Income</span>
+          <span>Spent</span>
+          <span>Left over</span>
+        </div>
 
-            <div className="month-row">
-              <span>Income</span>
-
-              <strong className="positive">
-                ${month.income.toFixed(2)}
+        {monthSummaries.map((month) => {
+          const leftOver = month.income - month.expenses;
+          return (
+            <div className="table-row" key={month.month}>
+              <span>{formatMonthLabel(month.month)}</span>
+              <span className="positive">{formatMoney(month.income)}</span>
+              <span>{formatMoney(month.expenses)}</span>
+              <strong className={leftOver < 0 ? "negative" : "positive"}>
+                {formatMoney(leftOver)}
               </strong>
             </div>
-
-            <div className="month-row">
-              <span>Expenses</span>
-
-              <strong className="negative">
-                ${month.expenses.toFixed(2)}
-              </strong>
-            </div>
-
-            <div className="month-row total">
-              <span>Left Over</span>
-
-              <strong>
-                ${(month.income - month.expenses).toFixed(2)}
-              </strong>
-            </div>
-          </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

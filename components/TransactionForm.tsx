@@ -1,61 +1,42 @@
 import { FormEvent, useState } from "react";
-
-import {
-  categories,
-  getToday,
-  Transaction,
-  TransactionType,
-} from "@/lib/finance";
-
+import CategoryIcon from "@/components/CategoryIcon";
+import { categories, getToday, Transaction, TransactionType } from "@/lib/finance";
 import { supabase } from "@/lib/supabase";
 
 type TransactionFormProps = {
-  setTransactions: React.Dispatch<
-    React.SetStateAction<Transaction[]>
-  >;
+  setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
+  onDone: () => void;
 };
 
-export default function TransactionForm({
-  setTransactions,
-}: TransactionFormProps) {
+export default function TransactionForm({ setTransactions, onDone }: TransactionFormProps) {
   const today = getToday();
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [type, setType] =
-    useState<TransactionType>("expense");
+  const [type, setType] = useState<TransactionType>("expense");
   const [category, setCategory] = useState("Food");
   const [date, setDate] = useState(today);
+  const [saving, setSaving] = useState(false);
 
-  async function addTransaction(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function addTransaction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const numericAmount = Number(amount);
+    if (!name.trim() || !date || !numericAmount || numericAmount <= 0 || saving) return;
 
-    if (
-      !name.trim() ||
-      !date ||
-      !numericAmount ||
-      numericAmount <= 0
-    ) {
-      return;
-    }
-
-    const newTransaction = {
-      name: name.trim(),
-      amount: numericAmount,
-      type,
-      category: type === "income" ? "Income" : category,
-      date,
-    };
-
+    setSaving(true);
     const { data, error } = await supabase
       .from("transactions")
-      .insert(newTransaction)
+      .insert({
+        name: name.trim(),
+        amount: numericAmount,
+        type,
+        category: type === "income" ? "Income" : category,
+        date,
+      })
       .select()
       .single();
+    setSaving(false);
 
     if (error) {
       console.error("Error saving transaction:", error);
@@ -75,115 +56,84 @@ export default function TransactionForm({
       ...current,
     ]);
 
-    setName("");
-    setAmount("");
-    setType("expense");
-    setCategory("Food");
-    setDate(today);
+    onDone();
   }
 
   return (
-    <form className="card" onSubmit={addTransaction}>
-      <div className="section-heading">
-        <h2>Add Transaction</h2>
-        <span>Quick entry</span>
+    <form className="form" onSubmit={addTransaction}>
+      <div className="segmented" role="radiogroup" aria-label="Type">
+        {(["expense", "income"] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            role="radio"
+            aria-checked={type === option}
+            className={type === option ? "active" : ""}
+            onClick={() => setType(option)}
+          >
+            {option === "expense" ? "Expense" : "Income"}
+          </button>
+        ))}
       </div>
 
-      <label>
-        <span>Name</span>
+      <label className="field amount-field">
+        <span>Amount</span>
+        <div className="money-input big">
+          <span>$</span>
+          <input
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="0.00"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            required
+            autoFocus
+          />
+        </div>
+      </label>
 
+      <label className="field">
+        <span>Name</span>
         <input
           value={name}
-          onChange={(event) =>
-            setName(event.target.value)
-          }
-          placeholder="Ex: Rent, paycheck, Chipotle"
+          onChange={(event) => setName(event.target.value)}
+          placeholder={type === "income" ? "Ex: Paycheck" : "Ex: Rent, Chipotle, gas"}
+          required
         />
       </label>
 
-      <label>
-        <span>Amount</span>
-
-        <input
-          value={amount}
-          onChange={(event) =>
-            setAmount(event.target.value)
-          }
-          placeholder="0.00"
-          type="number"
-          min="0"
-          step="0.01"
-        />
-      </label>
-
-      <label>
-        <span>Date</span>
-
-        <input
-          value={date}
-          onChange={(event) =>
-            setDate(event.target.value)
-          }
-          type="date"
-        />
-      </label>
-
-      <div className="input-grid">
-        <label>
-          <span>Type</span>
-
-          <select
-            value={type}
-            onChange={(event) =>
-              setType(
-                event.target.value as TransactionType
-              )
-            }
-          >
-            <option value="expense">
-              Expense
-            </option>
-
-            <option value="income">
-              Income
-            </option>
-          </select>
-        </label>
-
-        <label>
+      {type === "expense" && (
+        <div className="field">
           <span>Category</span>
+          <div className="chip-grid" role="radiogroup" aria-label="Category">
+            {categories
+              .filter((cat) => cat !== "Subscriptions")
+              .map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  role="radio"
+                  aria-checked={category === cat}
+                  className={category === cat ? "chip active" : "chip"}
+                  onClick={() => setCategory(cat)}
+                >
+                  <CategoryIcon category={cat} size="sm" />
+                  {cat}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
 
-          {type === "expense" ? (
-            <select
-              value={category}
-              onChange={(event) =>
-                setCategory(event.target.value)
-              }
-            >
-              {categories
-                .filter(
-                  (cat) => cat !== "Subscriptions"
-                )
-                .map((cat) => (
-                  <option
-                    key={cat}
-                    value={cat}
-                  >
-                    {cat}
-                  </option>
-                ))}
-            </select>
-          ) : (
-            <input value="Income" disabled />
-          )}
-        </label>
-      </div>
+      <label className="field">
+        <span>Date</span>
+        <input value={date} onChange={(event) => setDate(event.target.value)} type="date" required />
+      </label>
 
-      <button
-        className="primary-button"
-        type="submit"
-      >
-        Add Transaction
+      <button className="primary-button" type="submit" disabled={saving}>
+        {saving ? "Saving…" : type === "income" ? "Add income" : "Add expense"}
       </button>
     </form>
   );
