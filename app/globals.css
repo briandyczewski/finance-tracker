@@ -762,6 +762,43 @@ body.dark-mode .theme-toggle {
   background: linear-gradient(145deg, #f8fafc, #cbd5e1);
   color: #0f172a;
 }
+
+/* Sign in / sign out */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sign-out-button {
+  height: 48px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 18px;
+  padding: 0 14px;
+  background: linear-gradient(145deg, #ffffff, #f1f5f9);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+
+.sign-out-button:active {
+  transform: scale(0.98);
+}
+
+body.dark-mode .sign-out-button {
+  background: linear-gradient(145deg, #334155, #1e293b);
+  border-color: rgba(71, 85, 105, 0.9);
+  color: #cbd5e1;
+}
+
+.login-error {
+  margin: 0 0 13px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+}
 /* Savings & investments */
 .tabs-five {
   grid-template-columns: repeat(5, 1fr);

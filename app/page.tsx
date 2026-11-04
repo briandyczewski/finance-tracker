@@ -38,7 +38,17 @@ export default function Home() {
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
   const [darkMode, setDarkMode] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const budgetSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    // If the session ends (signed out in another tab, or it expired), go back to sign in.
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") window.location.replace("/login");
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function loadTransactions() {
@@ -90,7 +100,7 @@ export default function Home() {
       }
     }
 
-    async function loadBudgets() {
+    async function loadBudgets(userId: string) {
       const { data, error } = await supabase.from("budgets").select("*");
 
       if (error) {
@@ -110,10 +120,16 @@ export default function Home() {
           const legacyBudgets: Record<string, number> = JSON.parse(legacy);
           const toUpload = Object.entries(legacyBudgets)
             .filter(([category, amount]) => !(category in loaded) && Number(amount) > 0)
-            .map(([category, amount]) => ({ category, amount: Number(amount) }));
+            .map(([category, amount]) => ({
+              user_id: userId,
+              category,
+              amount: Number(amount),
+            }));
 
           if (toUpload.length > 0) {
-            const { error: uploadError } = await supabase.from("budgets").upsert(toUpload);
+            const { error: uploadError } = await supabase
+              .from("budgets")
+              .upsert(toUpload, { onConflict: "user_id,category" });
             if (uploadError) {
               console.error("Error moving budgets to Supabase:", uploadError);
               setBudgets({ ...legacyBudgets, ...loaded });
@@ -130,7 +146,7 @@ export default function Home() {
       setBudgets(loaded);
     }
 
-    async function loadSettings() {
+    async function loadSettings(userId: string) {
       const { data, error } = await supabase
         .from("app_settings")
         .select("value")
@@ -149,7 +165,12 @@ export default function Home() {
       } else if (legacy !== null) {
         const value = legacy === "true";
         setDarkMode(value);
-        await supabase.from("app_settings").upsert({ key: "dark_mode", value });
+        await supabase
+          .from("app_settings")
+          .upsert(
+            { user_id: userId, key: "dark_mode", value },
+            { onConflict: "user_id,key" }
+          );
       }
 
       localStorage.removeItem("finance-dark-mode");
@@ -177,11 +198,24 @@ export default function Home() {
       );
     }
 
-    loadTransactions();
-    loadSubscriptions();
-    loadBudgets();
-    loadSettings();
-    loadSavings();
+    async function loadAll() {
+      const { data } = await supabase.auth.getSession();
+      const signedInId = data.session?.user.id;
+
+      if (!signedInId) {
+        window.location.replace("/login");
+        return;
+      }
+
+      setUserId(signedInId);
+      loadTransactions();
+      loadSubscriptions();
+      loadBudgets(signedInId);
+      loadSettings(signedInId);
+      loadSavings();
+    }
+
+    loadAll();
   }, []);
 
   useEffect(() => {
@@ -195,12 +229,21 @@ export default function Home() {
   async function toggleDarkMode() {
     const value = !darkMode;
     setDarkMode(value);
+    if (!userId) return;
 
     const { error } = await supabase
       .from("app_settings")
-      .upsert({ key: "dark_mode", value, updated_at: new Date().toISOString() });
+      .upsert(
+        { user_id: userId, key: "dark_mode", value, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,key" }
+      );
 
     if (error) console.error("Error saving dark mode:", error);
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    window.location.replace("/login");
   }
 
   function updateBudget(category: string, value: number) {
@@ -209,11 +252,17 @@ export default function Home() {
     // Wait until typing pauses before saving.
     clearTimeout(budgetSaveTimers.current[category]);
     budgetSaveTimers.current[category] = setTimeout(async () => {
-      const { error } = await supabase.from("budgets").upsert({
-        category,
-        amount: value > 0 ? value : 0,
-        updated_at: new Date().toISOString(),
-      });
+      if (!userId) return;
+
+      const { error } = await supabase.from("budgets").upsert(
+        {
+          user_id: userId,
+          category,
+          amount: value > 0 ? value : 0,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,category" }
+      );
 
       if (error) {
         console.error("Error saving budget:", error);
@@ -341,13 +390,23 @@ export default function Home() {
             <h1>Finance Tracker</h1>
           </div>
 
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleDarkMode}
-          >
-            {darkMode ? "☀️" : "🌙"}
-          </button>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="sign-out-button"
+              onClick={signOut}
+            >
+              Sign out
+            </button>
+
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={toggleDarkMode}
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+          </div>
         </header>
 
         <nav className="tabs tabs-five">
