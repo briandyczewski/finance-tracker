@@ -63,7 +63,12 @@ export default function RecommendationCard({
 }: RecommendationCardProps) {
   const recommendedSavings = income * 0.2;
   const recommendedInvesting = income * 0.1;
-  const safeSpendingLeft = income - expenses - recommendedSavings - recommendedInvesting;
+  // `expenses` excludes Savings/Investing transactions. Set aside whichever is
+  // larger: the target, or what was actually put in (going past the target
+  // comes out of spending money; staying under it changes nothing).
+  const setAsideSavings = Math.max(recommendedSavings, savedThisMonth);
+  const setAsideInvesting = Math.max(recommendedInvesting, investedThisMonth);
+  const safeSpendingLeft = income - expenses - setAsideSavings - setAsideInvesting;
 
   return (
     <section className="card">

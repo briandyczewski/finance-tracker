@@ -343,6 +343,18 @@ export default function Home() {
   const expenses = manualExpenses + subscriptionExpenses;
   const balance = income - expenses;
 
+  // Savings/Investing transactions move money aside rather than spend it,
+  // so Safe Spending Left handles them through the plan targets instead.
+  const savingsInvestingExpenses = monthlyTransactions
+    .filter(
+      (transaction) =>
+        transaction.type === "expense" &&
+        (transaction.category === "Savings" ||
+          transaction.category === "Investing")
+    )
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const spendingExpenses = expenses - savingsInvestingExpenses;
+
   const categoryTotals = categories.map((category) => {
     if (category === "Subscriptions") {
       return {
@@ -464,7 +476,7 @@ export default function Home() {
             <div className="o-2">
               <RecommendationCard
                 income={income}
-                expenses={expenses}
+                expenses={spendingExpenses}
                 savedThisMonth={monthSavingsTotal}
                 investedThisMonth={monthInvestingTotal}
               />
