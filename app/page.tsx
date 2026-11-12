@@ -455,6 +455,7 @@ export default function Home() {
                 today={today}
                 income={income}
                 expenses={expenses}
+                savedOrInvested={savingsInvestingExpenses}
                 balance={balance}
                 transactions={transactions}
                 subscriptions={subscriptions}

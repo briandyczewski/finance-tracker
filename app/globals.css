@@ -521,6 +521,18 @@ input[type="number"]::-webkit-outer-spin-button {
   font-variant-numeric: tabular-nums;
 }
 
+.hero-sub {
+  margin: -4px 0 12px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.hero-sub strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .trend-chip {
   display: inline-flex;
   align-items: center;

@@ -26,6 +26,7 @@ type BalanceCardProps = {
   today: string;
   income: number;
   expenses: number;
+  savedOrInvested: number;
   balance: number;
   transactions: Transaction[];
   subscriptions: Subscription[];
@@ -42,6 +43,7 @@ export default function BalanceCard({
   today,
   income,
   expenses,
+  savedOrInvested,
   balance,
   transactions,
   subscriptions,
@@ -81,6 +83,13 @@ export default function BalanceCard({
     <section className="card hero-card">
       <p className="hero-label">Spent in {monthName(month)}</p>
       <p className="hero-amount">{formatMoney(expenses)}</p>
+
+      {savedOrInvested > 0 ? (
+        <p className="hero-sub">
+          <span className="positive">{formatMoney(savedOrInvested)}</span> of that was saved or
+          invested, so <strong>{formatMoney(expenses - savedOrInvested)}</strong> was actually spent
+        </p>
+      ) : null}
 
       {lastMonthSoFar > 0 || spentSoFar > 0 ? (
         <p className={difference > 0 ? "trend-chip up" : "trend-chip down"}>
