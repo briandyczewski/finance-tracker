@@ -8,6 +8,9 @@ export type Transaction = {
   amount: number;
   category: string;
   date: string;
+  // Set for transactions imported from a linked card or bank.
+  accountName?: string | null;
+  fromBank?: boolean;
 };
 
 export type Subscription = {

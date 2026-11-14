@@ -411,6 +411,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .o-3 { order: 3; }
 .o-4 { order: 4; }
 .o-5 { order: 5; }
+.o-6 { order: 6; }
 
 @media (min-width: 960px) {
   .stack,
@@ -1379,6 +1380,71 @@ body.dark-mode .segmented button.active {
   font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ---------- Linked cards (Plaid) ---------- */
+
+.link-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.field > select {
+  width: 100%;
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+}
+
+.field > select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.link-controls .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.link-message {
+  margin-top: 12px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.list-row .row-delete.always-visible {
+  opacity: 1;
+}
+
+.link-button:disabled {
+  opacity: 0.6;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bank-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: -2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

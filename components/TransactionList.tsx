@@ -1,4 +1,4 @@
-import { Trash } from "lucide-react";
+import { CreditCard, Trash } from "lucide-react";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Transaction, formatMoney, formatShortDate } from "@/lib/finance";
 import { supabase } from "@/lib/supabase";
@@ -72,7 +72,16 @@ export default function TransactionList({
                   <CategoryIcon category={isIncome ? "Income" : transaction.category} />
                   <div className="row-text">
                     <strong>{transaction.name}</strong>
-                    <span>{transaction.category}</span>
+                    <span>
+                      {transaction.category}
+                      {transaction.fromBank && (
+                        <span className="bank-tag" title="Imported from a linked card">
+                          {" · "}
+                          <CreditCard size={12} />
+                          {transaction.accountName ?? "Card"}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <strong className={isIncome ? "row-value positive" : "row-value"}>
                     {isIncome ? "+" : ""}

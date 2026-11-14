@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 import {
@@ -30,6 +30,7 @@ import RecommendationCard from "@/components/RecommendationCard";
 import TrendChart from "@/components/TrendChart";
 import SavingsPanel from "@/components/SavingsPanel";
 import SavingsForm from "@/components/SavingsForm";
+import LinkedAccountsCard from "@/components/LinkedAccountsCard";
 
 type SheetName = "transaction" | "savings" | "subscription";
 
@@ -67,31 +68,34 @@ export default function Home() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    async function loadTransactions() {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false });
+  const loadTransactions = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error loading transactions:", error);
-        return;
-      }
-
-      if (data) {
-        setTransactions(
-          data.map((item) => ({
-            id: Number(item.id),
-            name: item.name,
-            amount: Number(item.amount),
-            type: item.type,
-            category: item.category,
-            date: item.date,
-          }))
-        );
-      }
+    if (error) {
+      console.error("Error loading transactions:", error);
+      return;
     }
+
+    if (data) {
+      setTransactions(
+        data.map((item) => ({
+          id: Number(item.id),
+          name: item.name,
+          amount: Number(item.amount),
+          type: item.type,
+          category: item.category,
+          date: item.date,
+          accountName: item.account_name ?? null,
+          fromBank: Boolean(item.plaid_transaction_id),
+        }))
+      );
+    }
+  }, []);
+
+  useEffect(() => {
 
     async function loadSubscriptions() {
       const { data, error } = await supabase
@@ -236,7 +240,7 @@ export default function Home() {
     }
 
     loadAll();
-  }, []);
+  }, [loadTransactions]);
 
   useEffect(() => {
     if (darkMode) {
@@ -481,6 +485,9 @@ export default function Home() {
                 savedThisMonth={monthSavingsTotal}
                 investedThisMonth={monthInvestingTotal}
               />
+            </div>
+            <div className="o-6">
+              <LinkedAccountsCard onImported={loadTransactions} />
             </div>
             <div className="o-4">
               <UpcomingCard
