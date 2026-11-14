@@ -1361,6 +1361,26 @@ body.dark-mode .segmented button.active {
   padding: 24px;
 }
 
+.auth-hint {
+  margin-top: -6px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.auth-switch {
+  margin-top: 18px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+.auth-switch a {
+  color: var(--text);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

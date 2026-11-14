@@ -33,13 +33,14 @@ export async function updateSession(request: NextRequest) {
   // and refreshes it when needed, which stops random sign-outs.
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims);
-  const onLoginPage = request.nextUrl.pathname.startsWith("/login");
+  const path = request.nextUrl.pathname;
+  const onAuthPage = path.startsWith("/login") || path.startsWith("/signup");
 
-  if (!signedIn && !onLoginPage) {
+  if (!signedIn && !onAuthPage) {
     return redirectKeepingCookies(request, response, "/login");
   }
 
-  if (signedIn && onLoginPage) {
+  if (signedIn && onAuthPage) {
     return redirectKeepingCookies(request, response, "/");
   }
 

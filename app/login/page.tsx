@@ -1,11 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { loginEmail } from "@/lib/accounts";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
@@ -16,7 +18,7 @@ export default function LoginPage() {
     setSigningIn(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: loginEmail(login),
       password,
     });
 
@@ -24,7 +26,7 @@ export default function LoginPage() {
       setSigningIn(false);
       setError(
         error.code === "invalid_credentials"
-          ? "That email and password don't match."
+          ? "That username and password don't match."
           : error.message
       );
       return;
@@ -49,13 +51,16 @@ export default function LoginPage() {
 
         <form className="card form" onSubmit={signIn}>
           <label className="field">
-            <span>Email</span>
+            <span>Username or email</span>
             <input
-              type="email"
-              autoComplete="email"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={login}
+              onChange={(event) => setLogin(event.target.value)}
             />
           </label>
 
@@ -80,6 +85,10 @@ export default function LoginPage() {
             {signingIn ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <p className="auth-switch">
+          New here? <Link href="/signup">Create an account</Link>
+        </p>
       </div>
     </main>
   );
