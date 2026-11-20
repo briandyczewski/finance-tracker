@@ -30,8 +30,12 @@ export type PlaidResult = {
   error?: string;
   link_token?: string;
   imported?: number;
+  holdings?: number;
   problems?: string[];
+  cancelled?: boolean;
 };
+
+export type LinkKind = "bank" | "brokerage";
 
 export async function callPlaid(
   action: "link_token" | "exchange" | "sync" | "unlink",
@@ -80,6 +84,53 @@ export function loadPlaidLink() {
     });
   }
   return scriptPromise;
+}
+
+// Opens Plaid Link and saves the new connection. Resolves once it's done,
+// cancelled, or failed. onSaving fires when the person finished in Plaid
+// and the app is saving the connection.
+export async function linkWithPlaid(
+  kind: LinkKind,
+  extra: Record<string, unknown> = {},
+  onSaving?: () => void
+): Promise<PlaidResult> {
+  const tokenResult = await callPlaid("link_token", { kind });
+  if (tokenResult.error || !tokenResult.link_token) {
+    return { error: tokenResult.error ?? "Couldn't start linking." };
+  }
+
+  try {
+    await loadPlaidLink();
+  } catch {
+    return { error: "Couldn't load Plaid. Check your connection and try again." };
+  }
+
+  return new Promise((resolve) => {
+    const handler = window.Plaid!.create({
+      token: tokenResult.link_token!,
+      onSuccess: async (publicToken, metadata) => {
+        onSaving?.();
+        const result = await callPlaid("exchange", {
+          public_token: publicToken,
+          institution_name: metadata.institution?.name ?? null,
+          accounts: metadata.accounts ?? [],
+          kind,
+          ...extra,
+        });
+        handler.destroy();
+        resolve(result);
+      },
+      onExit: (error) => {
+        handler.destroy();
+        resolve(
+          error
+            ? { error: error.display_message ?? "Linking didn't finish. Try again." }
+            : { cancelled: true }
+        );
+      },
+    });
+    handler.open();
+  });
 }
 
 export type { PlaidLinkMetadata };

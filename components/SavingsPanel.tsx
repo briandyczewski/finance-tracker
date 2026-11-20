@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { PiggyBank, Trash, TrendingUp } from "lucide-react";
 
+import BrokerageCard from "@/components/BrokerageCard";
 import CategoryIcon from "@/components/CategoryIcon";
 import {
   SavingsEntry,
@@ -136,6 +137,10 @@ export default function SavingsPanel({ entries, setEntries, selectedMonth }: Sav
             </div>
           </div>
         </section>
+
+        <div className="o-2">
+          <BrokerageCard />
+        </div>
 
         <section className="card o-3">
           <div className="card-head">

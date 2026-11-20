@@ -1440,6 +1440,37 @@ body.dark-mode .segmented button.active {
   }
 }
 
+.brokerage-total {
+  margin-top: 2px;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.brokerage-gain {
+  margin: 2px 0 12px;
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.holdings-head {
+  margin-top: 18px;
+}
+
+.holding-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.show-more {
+  margin-top: 10px;
+}
+
 .bank-tag {
   display: inline-flex;
   align-items: center;

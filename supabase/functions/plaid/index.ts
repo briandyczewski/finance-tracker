@@ -1,10 +1,14 @@
 // Optional bank / card linking through Plaid.
 //
 // Actions (POST JSON { action, ... }), all for the signed-in user only:
-//   link_token  -> starts Plaid Link
-//   exchange    -> saves a newly linked bank and imports its transactions
-//   sync        -> pulls new / changed / removed transactions for every linked bank
-//   unlink      -> disconnects a bank (already imported transactions are kept)
+//   link_token  -> starts Plaid Link (kind "bank" or "brokerage")
+//   exchange    -> saves a newly linked bank / brokerage and pulls its data
+//   sync        -> banks: new / changed / removed transactions;
+//                  brokerages: latest holdings and account values
+//   unlink      -> disconnects it (already imported transactions are kept)
+//
+// Brokerages never add transactions: they only fill investment_holdings, so
+// spending, budgets and Safe Spending are unaffected.
 //
 // Secrets (set in Supabase > Edge Functions > Secrets):
 //   PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV ("sandbox" or "production")
@@ -128,8 +132,70 @@ type Item = {
   item_id: string;
   user_id: string;
   import_from: string;
-  accounts: { id: string; name: string; mask?: string | null }[];
+  kind?: "bank" | "brokerage";
+  accounts: { id: string; name: string; mask?: string | null; balance?: number | null }[];
 };
+
+function accountLabel(account: { name: string; mask?: string | null }) {
+  return account.mask ? `${account.name} \u2022\u2022${account.mask}` : account.name;
+}
+
+// Replaces the stored holdings snapshot for one brokerage.
+async function refreshHoldings(admin: SupabaseClient, item: Item) {
+  const { data: secret, error: secretError } = await admin
+    .from("plaid_item_secrets")
+    .select("access_token")
+    .eq("item_id", item.item_id)
+    .single();
+  if (secretError || !secret) throw new Error("Missing access token");
+
+  const data = await plaid("/investments/holdings/get", { access_token: secret.access_token });
+
+  // deno-lint-ignore no-explicit-any
+  const securities = new Map<string, any>((data.securities ?? []).map((sec: any) => [sec.security_id, sec]));
+  // deno-lint-ignore no-explicit-any
+  const accounts = (data.accounts ?? []).map((account: any) => ({
+    id: String(account.account_id),
+    name: String(account.name ?? "Account"),
+    mask: account.mask ?? null,
+    balance: account.balances?.current ?? null,
+  }));
+  const accountNames = new Map(accounts.map((account: Item["accounts"][number]) => [account.id, accountLabel(account)]));
+
+  const now = new Date().toISOString();
+  // deno-lint-ignore no-explicit-any
+  const rows = (data.holdings ?? []).map((holding: any) => {
+    const security = securities.get(holding.security_id) ?? {};
+    return {
+      user_id: item.user_id,
+      item_id: item.item_id,
+      account_id: String(holding.account_id),
+      account_name: accountNames.get(String(holding.account_id)) ?? null,
+      name: String(security.name ?? security.ticker_symbol ?? "Unknown holding"),
+      ticker: security.ticker_symbol ?? null,
+      type: security.type ?? null,
+      quantity: Number(holding.quantity ?? 0),
+      price: holding.institution_price ?? security.close_price ?? null,
+      value: Number(holding.institution_value ?? 0),
+      cost_basis: holding.cost_basis ?? null,
+      updated_at: now,
+    };
+  });
+
+  const { error: deleteError } = await admin.from("investment_holdings").delete().eq("item_id", item.item_id);
+  if (deleteError) throw deleteError;
+  if (rows.length) {
+    const { error: insertError } = await admin.from("investment_holdings").insert(rows);
+    if (insertError) throw insertError;
+  }
+
+  await admin
+    .from("plaid_items")
+    .update({ accounts, last_synced_at: now })
+    .eq("item_id", item.item_id);
+
+  return rows.length;
+}
 
 async function syncItem(admin: SupabaseClient, item: Item) {
   const { data: secret, error: secretError } = await admin
@@ -263,13 +329,21 @@ Deno.serve(async (req) => {
   try {
     switch (body.action) {
       case "link_token": {
+        const brokerage = body.kind === "brokerage";
         const data = await plaid("/link/token/create", {
           client_name: "Finance Tracker",
           user: { client_user_id: userId },
-          products: ["transactions"],
-          transactions: { days_requested: 90 },
           country_codes: ["US"],
           language: "en",
+          ...(brokerage
+            ? {
+                products: ["investments"],
+                account_filters: { investment: { account_subtypes: ["all"] } },
+              }
+            : {
+                products: ["transactions"],
+                transactions: { days_requested: 90 },
+              }),
         });
         return reply({ link_token: data.link_token });
       }
@@ -291,10 +365,12 @@ Deno.serve(async (req) => {
           mask: account.mask ? String(account.mask).slice(0, 8) : null,
         }));
 
+        const kind: "bank" | "brokerage" = body.kind === "brokerage" ? "brokerage" : "bank";
         const item: Item = {
           item_id: exchanged.item_id,
           user_id: userId,
           import_from: importFrom,
+          kind,
           accounts,
         };
 
@@ -312,36 +388,41 @@ Deno.serve(async (req) => {
         // Transactions are often still loading right after linking; that's fine,
         // the next sync picks them up.
         let imported = 0;
+        let holdings = 0;
         try {
-          imported = await syncItem(admin, item);
+          if (kind === "brokerage") holdings = await refreshHoldings(admin, item);
+          else imported = await syncItem(admin, item);
         } catch (error) {
           console.error("Initial sync failed:", error);
         }
-        return reply({ ok: true, imported });
+        return reply({ ok: true, imported, holdings });
       }
 
       case "sync": {
         const { data: items, error } = await admin
           .from("plaid_items")
-          .select("item_id, user_id, import_from, accounts")
+          .select("item_id, user_id, import_from, accounts, kind")
           .eq("user_id", userId);
         if (error) throw error;
 
         let imported = 0;
+        let holdings = 0;
         const problems: string[] = [];
         for (const item of items ?? []) {
           try {
-            imported += await syncItem(admin, item as Item);
+            if (item.kind === "brokerage") holdings += await refreshHoldings(admin, item as Item);
+            else imported += await syncItem(admin, item as Item);
           } catch (error) {
+            if (error instanceof PlaidError && error.code === "PRODUCT_NOT_READY") continue;
             console.error("Sync failed for item", item.item_id, error);
             if (error instanceof PlaidError && error.code === "ITEM_LOGIN_REQUIRED") {
-              problems.push("A linked bank needs you to sign in again. Unlink it and connect it again.");
+              problems.push("A linked account needs you to sign in again. Unlink it and connect it again.");
             } else {
-              problems.push("One linked bank couldn't be synced right now.");
+              problems.push("One linked account couldn't be refreshed right now.");
             }
           }
         }
-        return reply({ ok: true, imported, problems });
+        return reply({ ok: true, imported, holdings, problems });
       }
 
       case "unlink": {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CreditCard, Link2, RefreshCw, Unlink } from "lucide-react";
 import CategoryIcon from "@/components/CategoryIcon";
 import { supabase } from "@/lib/supabase";
-import { callPlaid, loadPlaidLink } from "@/lib/plaid";
+import { callPlaid, linkWithPlaid } from "@/lib/plaid";
 
 type LinkedBank = {
   item_id: string;
@@ -40,6 +40,7 @@ export default function LinkedAccountsCard({ onImported }: LinkedAccountsCardPro
     const { data, error } = await supabase
       .from("plaid_items")
       .select("item_id, institution_name, accounts, last_synced_at")
+      .eq("kind", "bank")
       .order("created_at");
     if (error) {
       console.error("Error loading linked banks:", error);
@@ -97,56 +98,28 @@ export default function LinkedAccountsCard({ onImported }: LinkedAccountsCardPro
     setBusy("linking");
     setMessage("");
 
-    const tokenResult = await callPlaid("link_token");
-    if (tokenResult.error || !tokenResult.link_token) {
-      setBusy("");
-      setMessage(tokenResult.error ?? "Couldn't start linking.");
+    const result = await linkWithPlaid("bank", { days_back: daysBack }, () =>
+      setMessage("Linking… importing your transactions.")
+    );
+    setBusy("");
+
+    if (result.cancelled) {
+      setMessage("");
+      return;
+    }
+    if (result.error) {
+      setMessage(result.error);
       return;
     }
 
-    try {
-      await loadPlaidLink();
-    } catch {
-      setBusy("");
-      setMessage("Couldn't load Plaid. Check your connection and try again.");
-      return;
-    }
-
-    const handler = window.Plaid!.create({
-      token: tokenResult.link_token,
-      onSuccess: async (publicToken, metadata) => {
-        setMessage("Linking… importing your transactions.");
-        const result = await callPlaid("exchange", {
-          public_token: publicToken,
-          institution_name: metadata.institution?.name ?? null,
-          accounts: metadata.accounts ?? [],
-          days_back: daysBack,
-        });
-        setBusy("");
-
-        if (result.error) {
-          setMessage(result.error);
-          return;
-        }
-
-        const imported = result.imported ?? 0;
-        setMessage(
-          imported > 0
-            ? `Linked! Imported ${imported} transaction${imported === 1 ? "" : "s"}.`
-            : "Linked! Your bank is still sending transactions. Tap Sync in a minute."
-        );
-        if (imported > 0) onImported();
-        await loadBanks();
-        handler.destroy();
-      },
-      onExit: (error) => {
-        setBusy("");
-        if (error) setMessage(error.display_message ?? "Linking didn't finish. Try again.");
-        handler.destroy();
-      },
-    });
-
-    handler.open();
+    const imported = result.imported ?? 0;
+    setMessage(
+      imported > 0
+        ? `Linked! Imported ${imported} transaction${imported === 1 ? "" : "s"}.`
+        : "Linked! New transactions will show up as your bank sends them. Tap Sync anytime."
+    );
+    if (imported > 0) onImportedRef.current();
+    await loadBanks();
   }
 
   async function unlink(bank: LinkedBank) {
