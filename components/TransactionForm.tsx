@@ -14,7 +14,7 @@ export default function TransactionForm({ setTransactions, onDone }: Transaction
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<TransactionType>("expense");
-  const [category, setCategory] = useState("Food");
+  const [category, setCategory] = useState("Groceries");
   const [date, setDate] = useState(today);
   const [saving, setSaving] = useState(false);
 

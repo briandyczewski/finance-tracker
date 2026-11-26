@@ -3,9 +3,11 @@ import {
   Fuel,
   House,
   PiggyBank,
+  Pizza,
   Receipt,
   Repeat,
   Shapes,
+  ShoppingCart,
   Ticket,
   TrendingUp,
   Utensils,
@@ -17,6 +19,9 @@ type CategoryStyle = { Icon: LucideIcon; color: string };
 const styles: Record<string, CategoryStyle> = {
   Rent: { Icon: House, color: "#6366f1" },
   Bills: { Icon: Receipt, color: "#f59e0b" },
+  Groceries: { Icon: ShoppingCart, color: "#f97316" },
+  Takeout: { Icon: Pizza, color: "#eab308" },
+  // Old combined category, kept so any leftover "Food" rows still get an icon.
   Food: { Icon: Utensils, color: "#f97316" },
   Gas: { Icon: Fuel, color: "#ef4444" },
   Fun: { Icon: Ticket, color: "#ec4899" },

@@ -24,7 +24,8 @@ export type Subscription = {
 export const categories = [
   "Rent",
   "Bills",
-  "Food",
+  "Groceries",
+  "Takeout",
   "Gas",
   "Fun",
   "Savings",

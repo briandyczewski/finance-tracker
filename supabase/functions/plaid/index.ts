@@ -107,7 +107,16 @@ function mapTransaction(tx: any): Mapped {
 
   switch (primary) {
     case "FOOD_AND_DRINK":
-      return { type: "expense", category: "Food" };
+      // Grocery runs and liquor stores are Groceries; restaurants, fast food,
+      // coffee shops etc. are Takeout.
+      return {
+        type: "expense",
+        category:
+          detailed === "FOOD_AND_DRINK_GROCERIES" ||
+          detailed === "FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR"
+            ? "Groceries"
+            : "Takeout",
+      };
     case "TRANSPORTATION":
       return { type: "expense", category: detailed === "TRANSPORTATION_GAS" ? "Gas" : "Other" };
     case "RENT_AND_UTILITIES":
